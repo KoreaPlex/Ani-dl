@@ -14,4 +14,6 @@ Apikey
 ![image](https://user-images.githubusercontent.com/70357228/93705830-a2ca8b00-fb5b-11ea-84b5-a9aec71faa56.png)
 
 
-Plex TVDB에 맞추어 시즌과 에피소드명을 자동으로 리네이밍 + 다운로드
+Plex TVDB에 맞추어 시즌과 에피소드명을 자동으로 리네이밍
+
+No Torrent Client is Needed.
