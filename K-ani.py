@@ -583,6 +583,9 @@ def renameing_tools(filename , super_season = None): # only filename accept
             if res.status_code == 200 :
                 title = res.text
                 return renameing_tools('%s  - %s.mp4' % (title, info['episode'][0]))
+        elif res.status_code == 500 : # internal Error
+            name_info = {'tvdb_title' : "수동 정리 필요" , "season" : info['season'] , 'year':None}
+            return name_info
         else:
             j = res.json()['result']
             if j['season'] == None : j['season'] = '1'
@@ -599,7 +602,7 @@ def renameing_tools(filename , super_season = None): # only filename accept
             continue
         print(tmp)"""
 
-#test = renameing_tools('[Ohys-Raws] Fukigen na Mononokean Tsuzuki - 06 (AT-X 1280x720 x264 AAC).mp4')
+#test = renameing_tools('[HorribleSubs] Boku no Hero Academia - Ikinokore! Kesshi no Survival Kunren - 01 [1080p].mkv')
 
 if __name__ == '__main__':
     config_path = os.path.join(os.getcwd(), 'K-ani.config.pickle')
