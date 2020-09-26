@@ -2,23 +2,26 @@ import subprocess
 import os , re
 import argparse , json , platform , time
 from urllib.parse import unquote
-import file_split_merge
+try:
+    import file_split_merge
+except:
+    os.system('pip install file_split_merge')
+    import file_split_merge
 
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36'}
 
 try:
     from pyfiglet import Figlet
     f = Figlet(font='banner3-D', width=259)
-    print(f.renderText('K-ani . py'))
+    print(f.renderText('ANI - DL . py'))
 except:
     os.system('pip install pyfiglet')
     from pyfiglet import Figlet
     f = Figlet(font='banner3-D', width=259)
-    print(f.renderText('K-ani . py'))
+    print(f.renderText('ANI - DL . py'))
 
 try:
     import requests
-    from qbittorrent import Client
     from sqlitedict import SqliteDict
     from bs4 import BeautifulSoup
     import pickle
