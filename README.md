@@ -21,6 +21,7 @@ Apikey
 
 ![image](https://user-images.githubusercontent.com/70357228/95635354-27f3f080-0ac7-11eb-9d1e-9867bc95166d.png)
 
+![image](https://user-images.githubusercontent.com/70357228/95635922-c03ea500-0ac8-11eb-960c-de7982e4e1bd.png)
 
 Plex TVDB에 맞추어 시즌과 에피소드명을 자동으로 리네이밍
 
