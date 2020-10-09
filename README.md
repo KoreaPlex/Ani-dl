@@ -23,6 +23,9 @@ Apikey
 
 ![image](https://user-images.githubusercontent.com/70357228/95635922-c03ea500-0ac8-11eb-960c-de7982e4e1bd.png)
 
+![image](https://user-images.githubusercontent.com/70357228/95635981-ec5a2600-0ac8-11eb-8124-4f1bcfe84afd.png)
+
+
 Plex TVDB에 맞추어 시즌과 에피소드명을 자동으로 리네이밍
 
 No Torrent Client is Needed.
