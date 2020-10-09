@@ -478,7 +478,7 @@ def main_cycle(j=None):
                                 pass
                             break
 
-    return main_cycle(j=j8)
+    return main_cycle(j=j)
 
 def mkdirs(path):
     try:
