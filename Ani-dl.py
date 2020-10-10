@@ -916,7 +916,7 @@ def remove_bracket(text, style="["):
 
 
 def isSeason(t):
-    tmp = re.compile('s\d+', re.I)
+    tmp = re.compile('[^B]S\d+', re.I)
     tmp_res = re.findall(tmp, t)
     if tmp_res:
         return re.findall('\d+', tmp_res[0])[0]
@@ -945,7 +945,7 @@ def isSeason(t):
 
 
 def rename_for_searching(t):
-    tmp = re.compile('s\d+', re.I)
+    tmp = re.compile('[^B]S\d+', re.I)
     tmp_res = re.findall(tmp, t)
     if tmp_res:
         return isSeason(t), re.sub(tmp, '', t).strip()
