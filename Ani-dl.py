@@ -686,7 +686,7 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
     if _j.status_code != 200:
         return
     _j = _j.json()['result']
-    if _j == {}: return
+    if _j in [{} , []]: return
     final_save_path = os.path.join(config['save_path'], 'tmp_folder')
     if not os.path.exists(final_save_path): os.mkdir(final_save_path)
     delete_tmp_files(final_save_path)
