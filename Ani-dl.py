@@ -496,7 +496,6 @@ def sheet_renaming(directory , j , is_file=False):
         filename = os.path.split(directory)[1]
         ff = [item for item in j if item in filename]
         if ff:
-            full = os.path.join(path, filename)
             url = j[ff[0]][2]
             res = requests.get(url)
             s = BeautifulSoup(res.text, 'html.parser')
@@ -716,9 +715,9 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
                 session = net_interfaces_session[number % len(net_interfaces_session)]
                 open(os.path.join(final_save_path, filename), 'wb').write(session.get(url, headers=headers).content)
             mbps = (float(size) / 1000 / 1000) / (time.time() - st_time)
-            text = f'chunk name : {filename} | {round(time.time() - st_time, 2)} SEC | \tavg {round(mbps * config["multi_threading"], 2)} MB/s | {round(size / 1024 / 1024, 2)}MB'
+            #text = f'chunk name : {filename} | {round(time.time() - st_time, 2)} SEC | \tavg {round(mbps * config["multi_threading"], 2)} MB/s | {round(size / 1024 / 1024, 2)}MB'
             # pbar.set_description(text)
-            pbar.set_postfix_str(text)
+            #pbar.set_postfix_str(text)
             pbar.update(1)
             pbar.refresh()
 
