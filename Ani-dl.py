@@ -8,17 +8,13 @@ server_url = '103.208.222.5:23456'
 
 try:
     import file_split_merge
-    import psutil
     import requests_cache
 except:
     os.system('pip install file_split_merge')
-    os.system('pip install psutil')
     os.system('pip install requests-cache')
     os.system('pip3 install file_split_merge')
-    os.system('pip3 install psutil')
     os.system('pip3 install requests-cache')
     import file_split_merge
-    import psutil
     import requests_cache
 
 requests_cache.install_cache()
@@ -302,7 +298,23 @@ def main_cycle(j=None):
             keyword = input('멀티쓰레딩 값 (x = 나가기 , auto = a 키 입력) : ')
             if keyword == 'x': return main_cycle()
             if keyword == 'a' :
-                ips = get_bind_ips()
+                try:
+                    ips = get_bind_ips()
+                except:
+                    try:
+                        import psutil
+                    except:
+                        os.system('pip install psutil')
+                        os.system('pip3 install psutil')
+                        import psutil
+                        try:
+                            ips = get_bind_ips()
+                        except:
+                            import traceback
+                            traceback.print_exc()
+                            print("psutil을 설치할 수 없습니다. 처음으로 돌아갑니다.\n")
+                            input('아무 키나 누르십시오')
+                            return main_cycle(j=j)
                 reuslt = []
                 from requests.exceptions import ConnectionError
                 for ip in ips:
