@@ -14,6 +14,9 @@ except:
     os.system('pip install file_split_merge')
     os.system('pip install psutil')
     os.system('pip install requests-cache')
+    os.system('pip3 install file_split_merge')
+    os.system('pip3 install psutil')
+    os.system('pip3 install requests-cache')
     import file_split_merge
     import psutil
     import requests_cache
@@ -32,6 +35,7 @@ try:
     print(f.renderText('ANI - DL . py'))
 except:
     os.system('pip install pyfiglet')
+    os.system('pip3 install pyfiglet')
     from pyfiglet import Figlet
 
     f = Figlet(font='banner3-D', width=259)
@@ -51,6 +55,12 @@ except:
     os.system("pip install sqlitedict")
     os.system('pip install file-split-merge')
     os.system('pip install tqdm')
+    os.system("pip3 install requests")
+    os.system("pip3 install sqlitedict")
+    os.system("pip3 install beautifulsoup4")
+    os.system("pip3 install sqlitedict")
+    os.system('pip3 install file-split-merge')
+    os.system('pip3 install tqdm')
     import requests
     from sqlitedict import SqliteDict
     from bs4 import BeautifulSoup
@@ -395,7 +405,7 @@ def main_cycle(j=None):
                     if info == None : continue
                     folder_name = f"{info['tvdb_title']} ({info['year']})"
                     season = info['season']
-                    new_path = os.path.join(config['save_path'], folder_name, f"S0{season}", filename)
+                    new_path = os.path.join(config['save_path'], folder_name, f"S0{season}", Useless_Rename(filename))
                     mkdirs(os.path.split(new_path)[0])
                     print(f"RENAME\t\t{full}  -->>  {new_path}")
                     try:
@@ -419,65 +429,8 @@ def main_cycle(j=None):
             if select == "": select = os.getcwd()
             for (path, dir, files) in os.walk(select):
                 for filename in files:
-                    full = os.path.join(path , filename)
-                    info = renameing_tools(filename)
-                    if info == None : continue
-
-                    tvdb_info = info['tvdb_search_info']
-                    official_url = tvdb_info['url']  # seasons/absolute/1
-                    url = f'https://www.thetvdb.com{official_url}/seasons/absolute/1'
-                    tvdb_res = requests.get(url, headers=headers)
-                    s = BeautifulSoup(tvdb_res.text, 'html.parser')
-                    tbls = s.select('table.table > tbody > tr')
-                    folder_name = f"{info['tvdb_title']} ({info['year']})"
-                    new_filename = False
-                    for tbl in tbls:
-                        tbl_tds = tbl.select('td')
-                        S_E_info = tbl_tds[0].text
-                        tmp = re.compile('s\d+', re.I)
-                        tvdb_season = re.findall(tmp, S_E_info)[0]
-                        tvdb_season = re.findall('\d+', tvdb_season)[0]
-
-                        tmp = re.compile('e\d+', re.I)
-                        tvdb_episode = re.findall(tmp, S_E_info)[0]
-                        tvdb_episode = re.findall('\d+', tvdb_episode)[0]
-                        if int(info['episode'][0]) == int(tvdb_episode) and int(info['season'][0]) == int(
-                                tvdb_season):  # 보수적으로 잡는다.
-                            link = 'https://thetvdb.com' + tbl_tds[1].select_one('a')['href']
-                            res = requests.get(link, headers=headers)
-                            s = BeautifulSoup(res.text, 'html.parser')
-                            tmp = s.select('div.crumbs')[0].text
-                            com = re.compile('Season \d+')
-                            season = re.findall(com, tmp)[0]
-                            season = re.findall('\d+', season)[0]
-
-                            com = re.compile('Episode \d+')
-                            episode = re.findall(com, tmp)[0]
-                            episode = re.findall('\d+', episode)[0]
-
-                            ext = os.path.splitext(filename)[1]
-                            resolution = "Unknown"
-                            if [item for item in ['1080' , 'fhd' , '1920'] if item in filename]:
-                                resolution = "1080p"
-                            if [item for item in ['720' , '1280'] if item in filename]:
-                                resolution = "720p"
-                            new_filename = f"{folder_name} S{season}E{episode} [{resolution}]{ext}"
-                            new_path = os.path.join(config['save_path'] , folder_name , f'S0{season}' , new_filename)
-                            mkdirs(os.path.split(new_path)[0])
-                            print(f"RENAME\t\t{full}  -->>  {new_path}")
-                            try:
-                                os.renames(full, new_path)
-                                rename_log[new_path] = full
-                                rename_log.commit()
-                            except FileExistsError:
-                                os.remove(new_path)
-                                os.renames(full, new_path)
-                                rename_log[new_path] = full
-                                rename_log.commit()
-                            except FileNotFoundError:
-                                pass
-                            break
-
+                    rename_absolute_to_aired(os.path.join(path , filename))
+                    
     return main_cycle(j=j)
 
 def mkdirs(path):
@@ -496,6 +449,7 @@ def sheet_renaming(directory , j , is_file=False):
         filename = os.path.split(directory)[1]
         ff = [item for item in j if item in filename]
         if ff:
+            ff = [ff[-1]]
             url = j[ff[0]][2]
             res = requests.get(url)
             s = BeautifulSoup(res.text, 'html.parser')
@@ -550,12 +504,15 @@ def sheet_renaming(directory , j , is_file=False):
                 rename_log.commit()
             except FileNotFoundError:
                 pass
+            if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
+                rename_absolute_to_aired(full)
             return
         
     for (path, dir, files) in os.walk(directory):
         for filename in files:
             ff = [item for item in j if item in filename]
             if ff:
+                ff = [ff[-1]]
                 full = os.path.join(path, filename)
                 url = j[ff[0]][2]
                 res = requests.get(url)
@@ -611,6 +568,69 @@ def sheet_renaming(directory , j , is_file=False):
                     rename_log.commit()
                 except FileNotFoundError:
                     pass
+                if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
+                    rename_absolute_to_aired(full)
+
+def rename_absolute_to_aired(path):
+    rename_log = SqliteDict("rename_Log.db")
+    full , filename= path , os.path.split(path)[1]
+    info = renameing_tools(filename)
+    if info == None: return
+
+    tvdb_info = info['tvdb_search_info']
+    official_url = tvdb_info['url']  # seasons/absolute/1
+    url = f'https://www.thetvdb.com{official_url}/seasons/absolute/1'
+    tvdb_res = requests.get(url, headers=headers)
+    s = BeautifulSoup(tvdb_res.text, 'html.parser')
+    tbls = s.select('table.table > tbody > tr')
+    folder_name = replace_name_for_window(f"{info['tvdb_title']} ({info['year']})")
+    new_filename = False
+    for tbl in tbls:
+        tbl_tds = tbl.select('td')
+        S_E_info = tbl_tds[0].text
+        tmp = re.compile('s\d+', re.I)
+        tvdb_season = re.findall(tmp, S_E_info)[0]
+        tvdb_season = re.findall('\d+', tvdb_season)[0]
+
+        tmp = re.compile('e\d+', re.I)
+        tvdb_episode = re.findall(tmp, S_E_info)[0]
+        tvdb_episode = re.findall('\d+', tvdb_episode)[0]
+        if int(info['episode'][0]) == int(tvdb_episode) and int(info['season'][0]) == int(
+                tvdb_season):  # 보수적으로 잡는다.
+            link = 'https://thetvdb.com' + tbl_tds[1].select_one('a')['href']
+            res = requests.get(link, headers=headers)
+            s = BeautifulSoup(res.text, 'html.parser')
+            tmp = s.select('div.crumbs')[0].text
+            com = re.compile('Season \d+')
+            season = re.findall(com, tmp)[0]
+            season = re.findall('\d+', season)[0]
+
+            com = re.compile('Episode \d+')
+            episode = re.findall(com, tmp)[0]
+            episode = re.findall('\d+', episode)[0]
+
+            ext = os.path.splitext(filename)[1]
+            resolution = "Unknown"
+            if [item for item in ['1080', 'fhd', '1920'] if item in filename]:
+                resolution = "1080p"
+            if [item for item in ['720', '1280'] if item in filename]:
+                resolution = "720p"
+            new_filename = f"{folder_name} S{season}E{episode} [{resolution}]{ext}"
+            new_path = os.path.join(config['save_path'], folder_name, f'S0{season}', new_filename)
+            mkdirs(os.path.split(new_path)[0])
+            print(f"RENAME\t\t{full}  -->>  {new_path}")
+            try:
+                os.renames(full, new_path)
+                rename_log[new_path] = full
+                rename_log.commit()
+            except FileExistsError:
+                os.remove(new_path)
+                os.renames(full, new_path)
+                rename_log[new_path] = full
+                rename_log.commit()
+            except FileNotFoundError:
+                pass
+            break
 
 def get_bind_ips(except_ip_list=[] , except_ip_word_list=[] , except_keyword_list=[]):
     ips = psutil.net_if_addrs()
@@ -741,6 +761,7 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
     t = tmps[0]
     t = t.replace('-CRC.ros', '')
     t = re.sub(tmp, '', t).strip()
+    t = Useless_Rename(t)
     try:
         os.rename(output_name, os.path.join(final_save_path, t))
     except FileExistsError:
@@ -1076,6 +1097,16 @@ def renameing_tools(filename, super_season=None):  # only filename accept
         print(tmp)"""
 
 # test = renameing_tools('[HorribleSubs] Boku no Hero Academia - Ikinokore! Kesshi no Survival Kunren - 01 [1080p].mkv')
+
+def Useless_Rename(t):
+    t = t.replace('BS11','')
+    t = t.replace('1920x1080','')
+    t = t.replace('1280x720','')
+    t = t.replace('3840x2160','')
+    t = t.replace('x264','')
+    reg = re.compile('\s{2,9}')
+    t = re.sub(reg , '', t)
+    return t
 
 if __name__ == '__main__':
     config_path = os.path.join(os.getcwd(), 'K-ani.config.pickle')
