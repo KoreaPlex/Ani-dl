@@ -8,6 +8,12 @@ Beta (2020-10-10)
 
 BS11 을 시즌 11로 인식하는 점 수정
 
+FLAG 기능 추가
+
+[HorribleSubs] Re Zero kara Hajimeru Isekai Seikatsu 이 릴의 이 작품은 시즌없이 Absolutet Numbering으로 뿌리니까 후처리 할 때 자동으로 변경
+
+ex : [HorribleSubs] Re Zero kara Hajimeru Isekai Seikatsu - 36 [720p].mkv  -->>  Re  제로부터 시작하는 이세계 생활 (2016)\S02\Re  제로부터 시작하는 이세계 생활 (2016) S2E11 [720p].mkv
+
 # 필요사항
 
 Apikey 
