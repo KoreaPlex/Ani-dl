@@ -139,7 +139,8 @@ def main_cycle(j=None):
           "10. 다운로드 완료 후 리네이밍 설정하기\n"
           "11. 네트워크 설정\n"
           "12. 다운완료 DB 수정\n"
-          "13. 리네이밍(파일처리)\n")
+          "13. 리네이밍(파일처리)\n"
+          "14. 캐시 삭제\n")
     select = input()
     if select == "1":
         clear()
@@ -254,6 +255,8 @@ def main_cycle(j=None):
 
     elif select == "10":
         clear()
+        input("이 옵션은 폐기되었습니다. 아무 키나 누르시면 돌아갑니다.")
+        return main_cycle(j=j)
         print('이 설정은, 원피스나 코난 등의 Absolute Number를 따르는 애니메이션을 처리하기 위한 용도입니다.\n'
               '즉, 코난 975화를 S28E06 등으로 변환해줍니다.\n'
               '"키워드"위주로 체크합니다. 예를들면, [Erai-raws] Detective Conan - 975 [1080p].mkv 를 변환하고 싶으면 detective conan을 입력하면 됩니다.'
@@ -338,10 +341,10 @@ def main_cycle(j=None):
             print(index, '\t:\t', show)
             if index % int(config['list_count']) == 0 and index > 0:
                 select = input('특정 번호 지우기(재다운로드 가능) -> 번호 입력 / 특정 키워드 모두 지우기 -> 키워드 입력 / 다음 페이지 -> z 입력 / 나가기 -> x 입력')
-                if select == "x":
+                if select == ["x", "X"]:
                     clear()
                     return main_cycle()
-                if select == "z":
+                if select in ["z" , "Z", ""]:
                     clear()
                     continue
                 try:
@@ -384,7 +387,6 @@ def main_cycle(j=None):
 
 
                 clear()
-        input('특정 번호 지우기(재다운로드 가능) -> 번호 입력 / 특정 키워드 지우기 -> 키워드 입력 / 다음 페이지 -> z 입력 / 나가기 -> x 입력')
     elif select == "13":
         clear()
         print("원하는 기능을 고르세요.\n"
@@ -402,6 +404,7 @@ def main_cycle(j=None):
                 res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
                 j = res.json()['result']
                 sheet_renaming(select , j)
+            input("아무 키나 누르면 넘어갑니다.")
 
         elif select == "2":
             clear()
@@ -442,6 +445,15 @@ def main_cycle(j=None):
             for (path, dir, files) in os.walk(select):
                 for filename in files:
                     rename_absolute_to_aired(os.path.join(path , filename))
+    elif select == "14":
+        print("캐시를 삭제합니다")
+        try:
+            os.remove('ani-dl.cache.sqlite')
+            print("캐시 삭제 성공.")
+        except Exception as e:
+            print(e)
+            print("캐시를 지울 수 없습니다.")
+        input("아무 키나 누르면 넘어갑니다.")
                     
     return main_cycle(j=j)
 
@@ -488,7 +500,23 @@ def sheet_renaming(directory , j , is_file=False):
                 except:
                     continue
             folder_name = f"{replace_name_for_window(title)} ({year})"
-            season = f"S0{j[ff[0]][3]}"
+            try:
+                season = j[ff[0]][3]
+                if season == "": # 시즌명이 공란
+                    name_info = renameing_tools(filename)
+                    folder_name = name_info['tvdb_title'] + '%s' % (' (%s)' % name_info['year'] if name_info['year'] != None else "")
+                    folder_name = folder_name.strip()
+
+                    season = str(int(name_info['season']))  # or..
+                    episode = None
+                    base_dir_path = os.path.join(config['save_path'], replace_name_for_window(folder_name))
+
+                if int(season) < 10:
+                    season = "S0" + season
+                else:
+                    season = "S" + season
+            except:
+                season = "tmp"
             if j[ff[0]][4] == "":
                 new_path = os.path.join(config['save_path'], folder_name, season, filename)
             elif j[ff[0]][4] != "":  # 강제지정
@@ -498,13 +526,12 @@ def sheet_renaming(directory , j , is_file=False):
                     resolution = "1080p"
                 if [item for item in ['720', '1280'] if item in filename]:
                     resolution = "720p"
-                new_filename = f"{folder_name} S0{season}E{j[ff[0]][4]} [{resolution}]{ext}"
+                new_filename = f"{folder_name} {season}E{j[ff[0]][4]} [{resolution}]{ext}"
                 new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
             if not os.path.exists(os.path.join(config['save_path'], folder_name)): os.mkdir(
                 os.path.join(config['save_path'], folder_name))
             if not os.path.exists(os.path.join(config['save_path'], folder_name, season)): os.mkdir(
                 os.path.join(config['save_path'], folder_name, season))
-            print(f"RENAME\t\t{full}  -->>  {new_path}")
             try:
                 os.renames(full, new_path)
                 rename_log[new_path] = full
@@ -517,7 +544,9 @@ def sheet_renaming(directory , j , is_file=False):
             except FileNotFoundError:
                 pass
             if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
-                rename_absolute_to_aired(full)
+                rename_absolute_to_aired(new_path)
+            else:
+                print(f"RENAME\t\t{full}  -->>  {new_path}")
             return
         
     for (path, dir, files) in os.walk(directory):
@@ -552,7 +581,14 @@ def sheet_renaming(directory , j , is_file=False):
                     except:
                         continue
                 folder_name = f"{replace_name_for_window(title)} ({year})"
-                season = f"S0{j[ff[0]][3]}"
+                try:
+                    season = j[ff[0]][3]
+                    if int(season) < 10:
+                        season = "S0" + season
+                    else:
+                        season = "S" + season
+                except:season = "tmp"
+
                 if j[ff[0]][4] == "":
                     new_path = os.path.join(config['save_path'], folder_name, season, filename)
                 elif j[ff[0]][4] != "":  # 강제지정
@@ -568,7 +604,6 @@ def sheet_renaming(directory , j , is_file=False):
                     os.path.join(config['save_path'], folder_name))
                 if not os.path.exists(os.path.join(config['save_path'], folder_name, season)): os.mkdir(
                     os.path.join(config['save_path'], folder_name, season))
-                print(f"RENAME\t\t{full}  -->>  {new_path}")
                 try:
                     os.renames(full, new_path)
                     rename_log[new_path] = full
@@ -581,7 +616,9 @@ def sheet_renaming(directory , j , is_file=False):
                 except FileNotFoundError:
                     pass
                 if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
-                    rename_absolute_to_aired(full)
+                    rename_absolute_to_aired(new_path)
+                else:
+                    print(f"RENAME\t\t{full}  -->>  {new_path}")
 
 def rename_absolute_to_aired(path):
     rename_log = SqliteDict("rename_Log.db")
@@ -616,6 +653,13 @@ def rename_absolute_to_aired(path):
             com = re.compile('Season \d+')
             season = re.findall(com, tmp)[0]
             season = re.findall('\d+', season)[0]
+            try:
+                if int(season) < 10:
+                    season = "S0" + season
+                else:
+                    season = "S" + season
+            except:
+                season = "tmp"
 
             com = re.compile('Episode \d+')
             episode = re.findall(com, tmp)[0]
@@ -627,8 +671,8 @@ def rename_absolute_to_aired(path):
                 resolution = "1080p"
             if [item for item in ['720', '1280'] if item in filename]:
                 resolution = "720p"
-            new_filename = f"{folder_name} S{season}E{episode} [{resolution}]{ext}"
-            new_path = os.path.join(config['save_path'], folder_name, f'S0{season}', new_filename)
+            new_filename = f"{folder_name} {season}E{episode} [{resolution}]{ext}"
+            new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
             mkdirs(os.path.split(new_path)[0])
             print(f"RENAME\t\t{full}  -->>  {new_path}")
             try:
@@ -642,7 +686,7 @@ def rename_absolute_to_aired(path):
                 rename_log.commit()
             except FileNotFoundError:
                 pass
-            break
+            return
 
 def get_bind_ips(except_ip_list=[] , except_ip_word_list=[] , except_keyword_list=[]):
     ips = psutil.net_if_addrs()
@@ -696,17 +740,18 @@ def session_for_src_addr(addr: str) -> requests.Session:
     Create `Session` which will bind to the specified local address
     rather than auto-selecting it.
     """
-    session = requests.Session()
-    for prefix in ('http://', 'https://'):
-        session.get_adapter(prefix).init_poolmanager(
-            # those are default values from HTTPAdapter's constructor
-            connections=requests.adapters.DEFAULT_POOLSIZE,
-            maxsize=requests.adapters.DEFAULT_POOLSIZE,
-            # This should be a tuple of (address, port). Port 0 means auto-selection.
-            source_address=(addr, 0),
-        )
+    with requests_cache.disabled():
+        session = requests.Session()
+        for prefix in ('http://', 'https://'):
+            session.get_adapter(prefix).init_poolmanager(
+                # those are default values from HTTPAdapter's constructor
+                connections=requests.adapters.DEFAULT_POOLSIZE,
+                maxsize=requests.adapters.DEFAULT_POOLSIZE,
+                # This should be a tuple of (address, port). Port 0 means auto-selection.
+                source_address=(addr, 0),
+            )
 
-    return session
+        return session
 
 import multiprocessing
 def get_download(config, config_path, magnet, myanime_title, sub_url, episode_file_name):
@@ -742,7 +787,8 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
             st_time = time.time()
             size = item['attachments'][0]['size']
             if not config['network_interface'] :
-                open(os.path.join(final_save_path, filename), 'wb').write(requests.get(url, headers=headers).content)
+                with requests_cache.disabled():
+                    open(os.path.join(final_save_path, filename), 'wb').write(requests.get(url, headers=headers).content)
             else :
                 session = net_interfaces_session[number % len(net_interfaces_session)]
                 open(os.path.join(final_save_path, filename), 'wb').write(session.get(url, headers=headers).content)
@@ -790,7 +836,7 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
     episode = None
     convert_season_and_titles_showNames = [item.strip() for item in open(sort_keyword_path, 'r').readlines() if
                                            len(item) > 0]
-    if [item for item in convert_season_and_titles_showNames if item.lower() in t.lower()]:  # 키워드가 하나라도 겹친다면,
+    """if [item for item in convert_season_and_titles_showNames if item.lower() in t.lower()]:  # 키워드가 하나라도 겹친다면,
         tvdb_info = name_info['tvdb_search_info']
         official_url = tvdb_info['url']  # seasons/absolute/1
         url = f'https://www.thetvdb.com{official_url}/seasons/absolute/1'
@@ -820,7 +866,9 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
                 com = re.compile('Episode \d+')
                 episode = re.findall(com, tmp)[0]
                 episode = re.findall('\d+', episode)[0]
-                break
+                break"""
+    # 시트에서 처리할거니까 deprecated함 (abs 관련)
+
 
     base_dir_path = os.path.join(config['save_path'], replace_name_for_window(folder_name))
     if int(season) < 10:
@@ -939,10 +987,10 @@ def start_number_download(config, config_path, count):
 
 def remove_bracket(text, style="["):
     if style.count('[') > 0:
-        tmp = re.compile('\[[\w\d\s\-]+\]')
+        tmp = re.compile('\[[\w\d\s\-\.\!\@\#\$\%\^\&\*]+\]')
         text = re.sub(tmp, '', text).strip()
     if style.count('(') > 0:
-        tmp = re.compile('\([\w\d\s\-]+\)')
+        tmp = re.compile('\([\w\d\s\-\.\!\@\#\$\%\^\&\*]+\)')
         text = re.sub(tmp, '', text).strip()
     return text
 
