@@ -14,6 +14,14 @@ FLAG 기능 추가
 
 ex : [HorribleSubs] Re Zero kara Hajimeru Isekai Seikatsu - 36 [720p].mkv  -->>  Re  제로부터 시작하는 이세계 생활 (2016)\S02\Re  제로부터 시작하는 이세계 생활 (2016) S2E11 [720p].mkv
 
+### 201012
+
+리네이밍 관련 버그 픽스
+
+캐시 삭제 추가
+
+캐시 용량이 수십기가가 되는 문제 
+
 # 필요사항
 
 Apikey 
