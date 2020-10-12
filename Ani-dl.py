@@ -65,9 +65,12 @@ except:
 
 
 def replace_name_for_window(text):
+    # 'Re: 제로부터 시작하는 이세계 생활 (2016)'
     text = text.replace('&', ' ')
     text = text.replace('|', ' ')
     text = text.replace('<', ' ')
+    text = text.replace(':', ' ')
+    text = text.replace(':' , ' ')
     text = text.replace('>', ' ')
     text = text.replace('~', ' ')
     text = text.replace('/', ' ')
@@ -504,7 +507,7 @@ def sheet_renaming(directory , j , is_file=False):
                 season = j[ff[0]][3]
                 if season == "": # 시즌명이 공란
                     name_info = renameing_tools(filename)
-                    folder_name = name_info['tvdb_title'] + '%s' % (' (%s)' % name_info['year'] if name_info['year'] != None else "")
+                    folder_name = replace_name_for_window(name_info['tvdb_title']) + '%s' % (' (%s)' % name_info['year'] if name_info['year'] != None else "")
                     folder_name = folder_name.strip()
 
                     season = str(int(name_info['season']))  # or..
