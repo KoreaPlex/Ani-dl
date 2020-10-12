@@ -225,14 +225,14 @@ def main_cycle(j=None):
         config_save(config, config_path)
         print('저장 완료')
         input('진행하려면 아무 키나 누르세요.')
-        return main_cycle()
+        return main_cycle(j=j)
 
     elif select == "6":
         clear()
         print(f"현재 값은 {config['list_count']} 개가 리스트 하나에 보여집니다. 몇 개로 수정하겠습니까?")
         config['list_count'] = int(input("숫자만 입력 : "))
         config_save(config, config_path)
-        return main_cycle()
+        return main_cycle(j=j)
 
     elif select == "7":
         clear()
@@ -395,7 +395,8 @@ def main_cycle(j=None):
         print("원하는 기능을 고르세요.\n"
               "1. 구글 시트 리네이밍 (시트에 키워드가 있는 파일만 리네이밍 및 파일 이동)\n"
               "2. 자동 리네이밍 (시트 제외)\n"
-              "3. Absolute Numbering 리네이밍 (원피스, 코난같은 작품 파일 처리)\n")
+              "3. Absolute Numbering 리네이밍 (원피스, 코난같은 작품 파일 처리)\n"
+              "4. 자동 리네이밍 (시트 포함)\n")
         select = input("번호 입력 : ")
         if select == "1":
             clear()
@@ -405,8 +406,8 @@ def main_cycle(j=None):
             if select == "": select = os.getcwd()
             with requests_cache.disabled():
                 res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
-                j = res.json()['result']
-                sheet_renaming(select , j)
+                json_from_sheet = res.json()['result']
+                sheet_renaming(select , json_from_sheet)
             input("아무 키나 누르면 넘어갑니다.")
 
         elif select == "2":
@@ -440,14 +441,49 @@ def main_cycle(j=None):
 
         elif select == "3":
             clear()
-            print("Absolute Numbering 리네이밍 | 해당 모드는 recursive(내부 폴더 속에 있는 파일까지 리네이밍)하게 작동합니다. 폴더 위치를 입력해주세요.\n"
-                  "위치를 입력하지 않으면 현재폴더를 기준으로 잡습니다. 파일의 이름을 바꾸지는 않습니다.\n")
+            print("자동 리네이밍 (시트 포함)\n"
+                  "2번(자동 리네이밍)기능도 사용하고 후처리로 1번(시트)기능을 사용하는 옵션입니다.\n")
             select = input("폴더 위치 : ")
             rename_log = SqliteDict("rename_Log.db")
             if select == "": select = os.getcwd()
             for (path, dir, files) in os.walk(select):
                 for filename in files:
                     rename_absolute_to_aired(os.path.join(path , filename))
+        elif select == "4":
+            clear()
+            print("Absolute Numbering 리네이밍 | 해당 모드는 recursive(내부 폴더 속에 있는 파일까지 리네이밍)하게 작동합니다. 폴더 위치를 입력해주세요.\n"
+                  "위치를 입력하지 않으면 현재폴더를 기준으로 잡습니다. 파일의 이름을 바꾸지는 않습니다.\n")
+            select = input("폴더 위치 : ")
+            rename_log = SqliteDict("rename_Log.db")
+            if select == "": select = os.getcwd()
+            rename_log = SqliteDict("rename_Log.db")
+            with requests_cache.disabled():
+                res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
+                json_from_sheet = res.json()['result']
+                for (path, dir, files) in os.walk(select):
+                    for filename in files:
+                        full = os.path.join(path, filename)
+                        info = renameing_tools(filename)
+                        if info == None: continue
+                        folder_name = f"{replace_name_for_window(info['tvdb_title'])} ({info['year']})"
+                        season = info['season']
+                        new_path = os.path.join(config['save_path'], folder_name, f"S0{season}", Useless_Rename(filename))
+                        mkdirs(os.path.split(new_path)[0])
+                        print(f"RENAME\t\t{full}  -->>  {new_path}")
+                        try:
+                            os.renames(full, new_path)
+                            rename_log[new_path] = full
+                            rename_log.commit()
+                        except FileExistsError:
+                            os.remove(new_path)
+                            os.renames(full, new_path)
+                            rename_log[new_path] = full
+                            rename_log.commit()
+                        except FileNotFoundError:
+                            pass
+                        sheet_renaming(new_path, json_from_sheet , is_file=True)
+            input("아무 키나 누르면 넘어갑니다.")
+
     elif select == "14":
         print("캐시를 삭제합니다")
         try:
@@ -478,87 +514,7 @@ def sheet_renaming(directory , j , is_file=False):
         if ff:
             ff = [ff[-1]]
             url = j[ff[0]][2]
-            res = requests.get(url)
-            s = BeautifulSoup(res.text, 'html.parser')
-            tmps = s.select('div.change_translation_text')
-            title = None
-            if not title:
-                for tmp in tmps:
-                    if tmp['data-language'] == 'kor':
-                        title = tmp['data-title']
-                        break
-            if not title:
-                for tmp in tmps:
-                    if tmp['data-language'] == 'eng':
-                        title = tmp['data-title']
-                        break
-
-            year = None
-            tmps = s.select('ul.list-group > li')
-            for tmp in tmps:
-                try:
-                    if tmp['data-number'] == "1":
-                        tmp_text = tmp.select_one('p.list-group-item-text').text
-                        year = re.findall('\d{4}', tmp_text)[0]
-                except:
-                    continue
-            folder_name = f"{replace_name_for_window(title)} ({year})"
-            try:
-                season = j[ff[0]][3]
-                if season == "": # 시즌명이 공란
-                    name_info = renameing_tools(filename)
-                    folder_name = replace_name_for_window(name_info['tvdb_title']) + '%s' % (' (%s)' % name_info['year'] if name_info['year'] != None else "")
-                    folder_name = folder_name.strip()
-
-                    season = str(int(name_info['season']))  # or..
-                    episode = None
-                    base_dir_path = os.path.join(config['save_path'], replace_name_for_window(folder_name))
-
-                if int(season) < 10:
-                    season = "S0" + season
-                else:
-                    season = "S" + season
-            except:
-                season = "tmp"
-            if j[ff[0]][4] == "":
-                new_path = os.path.join(config['save_path'], folder_name, season, filename)
-            elif j[ff[0]][4] != "":  # 강제지정
-                ext = os.path.splitext(filename)[1]
-                resolution = "Unknown"
-                if [item for item in ['1080', 'fhd', '1920'] if item in filename]:
-                    resolution = "1080p"
-                if [item for item in ['720', '1280'] if item in filename]:
-                    resolution = "720p"
-                new_filename = f"{folder_name} {season}E{j[ff[0]][4]} [{resolution}]{ext}"
-                new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
-            if not os.path.exists(os.path.join(config['save_path'], folder_name)): os.mkdir(
-                os.path.join(config['save_path'], folder_name))
-            if not os.path.exists(os.path.join(config['save_path'], folder_name, season)): os.mkdir(
-                os.path.join(config['save_path'], folder_name, season))
-            try:
-                os.renames(full, new_path)
-                rename_log[new_path] = full
-                rename_log.commit()
-            except FileExistsError:
-                os.remove(new_path)
-                os.renames(full, new_path)
-                rename_log[new_path] = full
-                rename_log.commit()
-            except FileNotFoundError:
-                pass
-            if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
-                rename_absolute_to_aired(new_path)
-            else:
-                print(f"RENAME\t\t{full}  -->>  {new_path}")
-            return
-        
-    for (path, dir, files) in os.walk(directory):
-        for filename in files:
-            ff = [item for item in j if item in filename]
-            if ff:
-                ff = [ff[-1]]
-                full = os.path.join(path, filename)
-                url = j[ff[0]][2]
+            with requests_cache.enabled():
                 res = requests.get(url)
                 s = BeautifulSoup(res.text, 'html.parser')
                 tmps = s.select('div.change_translation_text')
@@ -586,12 +542,21 @@ def sheet_renaming(directory , j , is_file=False):
                 folder_name = f"{replace_name_for_window(title)} ({year})"
                 try:
                     season = j[ff[0]][3]
+                    if season == "": # 시즌명이 공란
+                        name_info = renameing_tools(filename)
+                        folder_name = replace_name_for_window(name_info['tvdb_title']) + '%s' % (' (%s)' % name_info['year'] if name_info['year'] != None else "")
+                        folder_name = folder_name.strip()
+
+                        season = str(int(name_info['season']))  # or..
+                        episode = None
+                        base_dir_path = os.path.join(config['save_path'], replace_name_for_window(folder_name))
+
                     if int(season) < 10:
                         season = "S0" + season
                     else:
                         season = "S" + season
-                except:season = "tmp"
-
+                except:
+                    season = "tmp"
                 if j[ff[0]][4] == "":
                     new_path = os.path.join(config['save_path'], folder_name, season, filename)
                 elif j[ff[0]][4] != "":  # 강제지정
@@ -601,7 +566,7 @@ def sheet_renaming(directory , j , is_file=False):
                         resolution = "1080p"
                     if [item for item in ['720', '1280'] if item in filename]:
                         resolution = "720p"
-                    new_filename = f"{folder_name} S0{season}E{j[ff[0]][4]} [{resolution}]{ext}"
+                    new_filename = f"{folder_name} {season}E{j[ff[0]][4]} [{resolution}]{ext}"
                     new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
                 if not os.path.exists(os.path.join(config['save_path'], folder_name)): os.mkdir(
                     os.path.join(config['save_path'], folder_name))
@@ -622,6 +587,79 @@ def sheet_renaming(directory , j , is_file=False):
                     rename_absolute_to_aired(new_path)
                 else:
                     print(f"RENAME\t\t{full}  -->>  {new_path}")
+                return
+        
+    for (path, dir, files) in os.walk(directory):
+        for filename in files:
+            ff = [item for item in j if item in filename]
+            if ff:
+                ff = [ff[-1]]
+                full = os.path.join(path, filename)
+                url = j[ff[0]][2]
+                with requests_cache.enabled():
+                    res = requests.get(url)
+                    s = BeautifulSoup(res.text, 'html.parser')
+                    tmps = s.select('div.change_translation_text')
+                    title = None
+                    if not title:
+                        for tmp in tmps:
+                            if tmp['data-language'] == 'kor':
+                                title = tmp['data-title']
+                                break
+                    if not title:
+                        for tmp in tmps:
+                            if tmp['data-language'] == 'eng':
+                                title = tmp['data-title']
+                                break
+
+                    year = None
+                    tmps = s.select('ul.list-group > li')
+                    for tmp in tmps:
+                        try:
+                            if tmp['data-number'] == "1":
+                                tmp_text = tmp.select_one('p.list-group-item-text').text
+                                year = re.findall('\d{4}', tmp_text)[0]
+                        except:
+                            continue
+                    folder_name = f"{replace_name_for_window(title)} ({year})"
+                    try:
+                        season = j[ff[0]][3]
+                        if int(season) < 10:
+                            season = "S0" + season
+                        else:
+                            season = "S" + season
+                    except:season = "tmp"
+
+                    if j[ff[0]][4] == "":
+                        new_path = os.path.join(config['save_path'], folder_name, season, filename)
+                    elif j[ff[0]][4] != "":  # 강제지정
+                        ext = os.path.splitext(filename)[1]
+                        resolution = "Unknown"
+                        if [item for item in ['1080', 'fhd', '1920'] if item in filename]:
+                            resolution = "1080p"
+                        if [item for item in ['720', '1280'] if item in filename]:
+                            resolution = "720p"
+                        new_filename = f"{folder_name} S0{season}E{j[ff[0]][4]} [{resolution}]{ext}"
+                        new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
+                    if not os.path.exists(os.path.join(config['save_path'], folder_name)): os.mkdir(
+                        os.path.join(config['save_path'], folder_name))
+                    if not os.path.exists(os.path.join(config['save_path'], folder_name, season)): os.mkdir(
+                        os.path.join(config['save_path'], folder_name, season))
+                    try:
+                        os.renames(full, new_path)
+                        rename_log[new_path] = full
+                        rename_log.commit()
+                    except FileExistsError:
+                        os.remove(new_path)
+                        os.renames(full, new_path)
+                        rename_log[new_path] = full
+                        rename_log.commit()
+                    except FileNotFoundError:
+                        pass
+                    if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
+                        rename_absolute_to_aired(new_path)
+                    else:
+                        print(f"RENAME\t\t{full}  -->>  {new_path}")
 
 def rename_absolute_to_aired(path):
     rename_log = SqliteDict("rename_Log.db")
