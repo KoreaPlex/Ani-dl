@@ -421,7 +421,7 @@ def main_cycle(j=None):
                     full = os.path.join(path , filename)
                     info = renameing_tools(filename)
                     if info == None : continue
-                    folder_name = f"{info['tvdb_title']} ({info['year']})"
+                    folder_name = f"{replace_name_for_window(info['tvdb_title'])} ({info['year']})"
                     season = info['season']
                     new_path = os.path.join(config['save_path'], folder_name, f"S0{season}", Useless_Rename(filename))
                     mkdirs(os.path.split(new_path)[0])
