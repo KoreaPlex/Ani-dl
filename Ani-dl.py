@@ -127,7 +127,141 @@ def showRename(show):
     return show.replace('\n', '   |   ')
 
 
-def main_cycle(j=None):
+def main_cycle(j=None , args=None):
+    if args:
+        # args start
+        if args.auto_download_start:
+            clear()
+            print('자동 다운로드가 시작됩니다. 이 창을 끄지 마십시오.')
+            strar_auto_download(config, config_path)
+        elif args.number_download_start:
+            start_number_download(config, config_path, int(args.number_download_start), j=j)
+        elif args.keyword_download_start:
+            if len(args.keyword_download_start) > 0:
+                new_j = []
+                for item in j:
+                    if keyword_download_start in item['data']['title']:
+                        new_j.append(item)
+                j = new_j
+                start_number_download(config, config_path, 100000, j=j)
+        elif args.date_download_start:
+            select = args.date_download_start
+            if select.count(':') > 0 and select.count('-') > 0:
+                tmp = [item.strip() for item in select.split(':')]
+                start_date = tmp[0] if len(tmp[0]) > 0 else None
+                if start_date: start_date = convert_date(start_date)
+
+                end_date = tmp[1] if len(tmp[1]) > 0 else None
+                if end_date: end_date = convert_date(end_date)
+                new_j = []
+                for item in j:
+                    for mg in item['data']['magnets']:
+                        mg_date = convert_date(mg['date'].split(' ')[0])  # '2020-10-12 14:20'
+                        add = False
+                        if start_date:
+                            if mg_date < start_date:  # 마그넷 올라온 날짜가 start_date 보다 이전
+                                continue
+                        if end_date:
+                            if mg_date > end_date:  # 마그넷 올라온 날짜가 end_date 보다 이후
+                                continue
+                        add = True
+                        break
+                    if add: new_j.append(item)
+                j = new_j
+                start_number_download(config, config_path, 100000, j=j)
+        if args.raname_folder_type:
+            tmp = args.raname_folder_type.split('|')
+            select = str(int(tmp[0]))
+            if select == "1":
+                select = tmp[1]
+                if select == "": select = os.getcwd()
+                with requests_cache.disabled():
+                    res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
+                    json_from_sheet = res.json()['result']
+                    sheet_renaming(select, json_from_sheet)
+                input("아무 키나 누르면 넘어갑니다.")
+
+            elif select == "2":
+                clear()
+                print("자동 리네이밍 (시트 제외) | 해당 모드는 recursive(내부 폴더 속에 있는 파일까지 리네이밍)하게 작동합니다. 폴더 위치를 입력해주세요.\n"
+                      "위치를 입력하지 않으면 현재폴더를 기준으로 잡습니다. 파일의 이름을 바꾸지는 않습니다.\n")
+                select = tmp[1]
+                if select == "": select = os.getcwd()
+                rename_log = SqliteDict("rename_Log.db")
+                for (path, dir, files) in os.walk(select):
+                    for filename in files:
+                        full = os.path.join(path, filename)
+                        info = renameing_tools(filename)
+                        if info == None: continue
+                        folder_name = f"{replace_name_for_window(info['tvdb_title'])} ({info['year']})"
+                        season = info['season']
+                        new_path = os.path.join(config['save_path'], folder_name, f"S0{season}",
+                                                Useless_Rename(filename))
+                        mkdirs(os.path.split(new_path)[0])
+                        print(f"RENAME\t\t{full}  -->>  {new_path}")
+                        try:
+                            os.renames(full, new_path)
+                            rename_log[new_path] = full
+                            rename_log.commit()
+                        except FileExistsError:
+                            os.remove(new_path)
+                            os.renames(full, new_path)
+                            rename_log[new_path] = full
+                            rename_log.commit()
+                        except FileNotFoundError:
+                            pass
+
+            elif select == "3":
+                clear()
+                select = tmp[1]
+                rename_log = SqliteDict("rename_Log.db")
+                if select == "": select = os.getcwd()
+                for (path, dir, files) in os.walk(select):
+                    for filename in files:
+                        rename_absolute_to_aired(os.path.join(path, filename))
+            elif select == "4":
+                clear()
+                select = tmp[1]
+                if select == "": select = os.getcwd()
+                rename_log = SqliteDict("rename_Log.db")
+                with requests_cache.disabled():
+                    res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
+                    json_from_sheet = res.json()['result']
+                    for (path, dir, files) in os.walk(select):
+                        for filename in files:
+                            full = os.path.join(path, filename)
+                            info = renameing_tools(filename)
+                            if info == None: continue
+                            folder_name = f"{replace_name_for_window(info['tvdb_title'])} ({info['year']})"
+                            season = info['season']
+                            new_path = os.path.join(config['save_path'], folder_name, f"S0{season}",
+                                                    Useless_Rename(filename))
+                            mkdirs(os.path.split(new_path)[0])
+                            print(f"RENAME\t\t{full}  -->>  {new_path}")
+                            try:
+                                os.renames(full, new_path)
+                                rename_log[new_path] = full
+                                rename_log.commit()
+                            except FileExistsError:
+                                os.remove(new_path)
+                                os.renames(full, new_path)
+                                rename_log[new_path] = full
+                                rename_log.commit()
+                            except FileNotFoundError:
+                                pass
+                            sheet_renaming(new_path, json_from_sheet, is_file=True)
+
+        if args.wait:
+            time.sleep(int(args.wait))
+            res = call_new_anime()
+            if res.status_code == 200:
+                j = res.json()['result']
+                return main_cycle(j=j , args=args)
+        elif len([item for item in vars(args) if item != None]) >= 1: # wait제외하고 하나만 입력된것.
+            print("스크립트 종료. 종료되는 것을 원치 않으시면 2개 이상의 --wait을 포함한 args 를 넣어주시길 바랍니다.")
+            return
+
+
     clear()
     print("이제 무엇을 하시겠습니까?\n"
           "1. 최신 애니메이션 조회\n"
@@ -162,7 +296,7 @@ def main_cycle(j=None):
                     continue
                 if tmp == 2:
                     clear()
-                    return main_cycle(j=j)
+                    return main_cycle(j=j , args=args)
 
                 clear()
         input('진행하려면 아무 키나 누르세요.')
@@ -188,14 +322,14 @@ def main_cycle(j=None):
                 print(
                     '\n\n추가로 넣을 키워드를 설정하세요. 해당 키워드가 들어있는 항목이 리스트에 있다면 다운받습니다. 수동 혹은 대량으로 추가하고 싶으면 keywords.txt 를 편집하세요. 구분자는 엔터입니다.')
                 keyword = input('나가려면 x 키를 입력하세요 : ')
-                if keyword == 'x': return main_cycle(j=j)
+                if keyword == 'x': return main_cycle(j=j , args=args)
                 if len(keyword.strip()) > 0:  # 빈칸은 안 됨
                     keyword_obj.write(keyword + '\n')
                     keyword_obj.close()
                     print(f'키워드 [{keyword}] (이)가 추가되었습니다.')
                     input('진행하려면 아무 키나 누르세요.')
                 else:
-                    return main_cycle(j=j)
+                    return main_cycle(j=j , args=args)
         elif select == "2":
             clear()
             print('해상도에 관한 설정은 다음 두 가지가 있습니다. 화이트리스트와 블랙리스트로, 블랙리스트에 넣으면 아예 그 해상도는 다운받지 않고,\n'
@@ -231,14 +365,14 @@ def main_cycle(j=None):
         config_save(config, config_path)
         print('저장 완료')
         input('진행하려면 아무 키나 누르세요.')
-        return main_cycle(j=j)
+        return main_cycle(j=j , args=args)
 
     elif select == "6":
         clear()
         print(f"현재 값은 {config['list_count']} 개가 리스트 하나에 보여집니다. 몇 개로 수정하겠습니까?")
         config['list_count'] = int(input("숫자만 입력 : "))
         config_save(config, config_path)
-        return main_cycle(j=j)
+        return main_cycle(j=j , args=args)
 
     elif select == "7":
         clear()
@@ -265,7 +399,7 @@ def main_cycle(j=None):
     elif select == "10":
         clear()
         input("이 옵션은 폐기되었습니다. 아무 키나 누르시면 돌아갑니다.")
-        return main_cycle(j=j)
+        return main_cycle(j=j , args=args)
         print('이 설정은, 원피스나 코난 등의 Absolute Number를 따르는 애니메이션을 처리하기 위한 용도입니다.\n'
               '즉, 코난 975화를 S28E06 등으로 변환해줍니다.\n'
               '"키워드"위주로 체크합니다. 예를들면, [Erai-raws] Detective Conan - 975 [1080p].mkv 를 변환하고 싶으면 detective conan을 입력하면 됩니다.'
@@ -326,7 +460,7 @@ def main_cycle(j=None):
                             traceback.print_exc()
                             print("psutil을 설치할 수 없습니다. 처음으로 돌아갑니다.\n")
                             input('아무 키나 누르십시오')
-                            return main_cycle(j=j)
+                            return main_cycle(j=j , args=args)
                 reuslt = []
                 from requests.exceptions import ConnectionError
                 for ip in ips:
@@ -378,7 +512,7 @@ def main_cycle(j=None):
                                 pass
                     clear()
                     input("진행하려면 아무 키나 누르십시오.")
-                    return main_cycle(j=j)
+                    return main_cycle(j=j , args=args)
                     
                 except:
                     for item in j:
@@ -402,7 +536,7 @@ def main_cycle(j=None):
 
                 input("진행하려면 아무 키나 누르십시오.")
                 clear()
-                return main_cycle(j=j)
+                return main_cycle(j=j , args=args)
     elif select == "13":
         clear()
         print("원하는 기능을 고르세요.\n"
@@ -554,7 +688,7 @@ def main_cycle(j=None):
             j = new_j
             start_number_download(config, config_path, 100000 , j=j)
 
-    return main_cycle(j=j)
+    return main_cycle(j=j , args=args)
 
 def convert_date(text):
     if text.count('-') == 2 : # 2020-10-10
@@ -868,7 +1002,7 @@ def session_for_src_addr(addr: str) -> requests.Session:
         return session
 
 import multiprocessing
-def get_download(config, config_path, magnet, myanime_title, sub_url, episode_file_name):
+def get_download(config, config_path, magnet, myanime_title, sub_url, episode_file_name , date=None):
     unique_code = word_hash(magnet)
     unique_code_part = unique_code[:6]
     if episode_file_name:
@@ -890,7 +1024,7 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
     size = 0
     for part in _j:
         size += part['attachments'][0]['size']
-    print(f"다운로드 시작 : {episode_file_name} \t|\t 청크 갯수 : {len(_j)} \t|\t 용량 : {round(size/1024/1024/1024 , 2)} GB")
+    print(f"다운로드 시작 : {episode_file_name} \t|\t 청크 갯수 : {len(_j)} \t|\t 용량 : {round(size/1024/1024/1024 , 2)} GB \t|\t 업로드 날짜 : {date}")
     pbar = tqdm(_j, bar_format="{desc:<5}{percentage:3.0f}%|{bar}{r_bar}")
     with ThreadPoolExecutor(max_workers=config['multi_threading']) as ex:
         # for item in pbar:
@@ -1036,7 +1170,7 @@ def strar_auto_download(config, config_path):
                 if magnet in download_db: continue
                 tes = word_hash(magnet)
                 if word_hash(magnet) not in able_files: continue
-                if get_download(config, config_path, magnet, myanime_title, sub_url, tmp['title']):
+                if get_download(config, config_path, magnet, myanime_title, sub_url, tmp['title'] , tmp['date']):
                     download_db[magnet] = True
                     download_db.commit()
                 else:
@@ -1061,7 +1195,7 @@ def start_number_download(config, config_path, count , j=[]):
             # magnet = "magnet:?xt=urn:btih:0d4060cf38a86d889cca3d99e12a3180b90ae13e"
             if magnet in download_db: continue
             if word_hash(magnet) not in able_files: continue
-            if get_download(config, config_path, magnet, myanime_title, sub_url, tmp['title']):
+            if get_download(config, config_path, magnet, myanime_title, sub_url, tmp['title'], tmp['date']):
                 download_db[magnet] = True
                 download_db.commit()
             else:
@@ -1254,6 +1388,11 @@ def Useless_Rename(t):
     t = re.sub(reg , '', t)
     return t
 
+def call_new_anime():
+    res = requests.get(f'http://{server_url}/ani_list',
+                       data={'apikey': config['apikey'], 'count': str(config['count'])})
+    return res
+
 if __name__ == '__main__':
     config_path = os.path.join(os.getcwd(), 'K-ani.config.pickle')
     keyword_path = os.path.join(os.getcwd(), 'keywords.txt')
@@ -1278,13 +1417,27 @@ if __name__ == '__main__':
     else:
         config = config_load(config_path)
     print(config)
+    ### 2020-10-14
+    import argparse
+    parser = argparse.ArgumentParser(description="automation")
+    parser.add_argument('--keyword_download_start' , type=str , help="키워드 다운로드 자동시작. 키워드는 하나만 입력. 해당 키워드가 들어간 모든 애니메이션 다운로드. (리스트에서)")
+    parser.add_argument('--number_download_start' , type=int , help="수량 다운로드 자동시작. 숫자만 입력.")
+    parser.add_argument('--auto_download_start', type=bool, help="설정 그대로 다운로드 시작 True or False로 bool 타입만 입력")
+    parser.add_argument('--raname_folder_type', type=str, help="해당 폴더 내부 파일들 전부(recursive) 리네임하기.\n"
+                        "1. 구글 시트 리네이밍 (시트에 키워드가 있는 파일만 리네이밍 및 파일 이동)\n"
+                        "2. 자동 리네이밍 (시트 제외)\n"
+                        "3. Absolute Numbering 리네이밍 (원피스, 코난같은 작품 파일 처리)\n"
+                        "4. 자동 리네이밍 (시트 포함)\n"
+                        "구분자는 |\n"
+                        "작성 예시 : 3|F:\# INCOMING\최신 애니\원피스 (1998)")
+    parser.add_argument('--date_download_start', type=str, help="특정 날짜에 포함된 것들만 다운. ex ) 2020-09:2020-10 또는 2019-3: 또는 :2020-1")
+    parser.add_argument('--wait' , type=int , help="특정 시간마다 신작 리스트 재호출 후 스크립트 그대로 다시시작. 숫자만 입력. 입력하지 않을 경우 1사이클 돌고 종료.")
+    args = parser.parse_args()
     # time.sleep(3)
-
-    res = requests.get(f'http://{server_url}/ani_list',
-                       data={'apikey': config['apikey'], 'count': str(config['count'])})
+    res = call_new_anime()
     if res.status_code == 200:
         j = res.json()['result']
-        main_cycle(j=j)
+        main_cycle(j=j , args=args)
     else:
         print('APIKEY가 등록되지 않았습니다. 관리자에게 문의하십시오.')
         input()
