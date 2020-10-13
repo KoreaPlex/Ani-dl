@@ -143,7 +143,9 @@ def main_cycle(j=None):
           "11. 네트워크 설정\n"
           "12. 다운완료 DB 수정\n"
           "13. 리네이밍(파일처리)\n"
-          "14. 캐시 삭제\n")
+          "14. 캐시 삭제\n"
+          "15. 특정 년도 작품만 받기\n"
+          "16. 특정 키워드 들어간 작품 전부 받기\n")
     select = input()
     if select == "1":
         clear()
@@ -218,6 +220,10 @@ def main_cycle(j=None):
                 config_save(config, config_path)
                 input('진행하려면 아무 키나 누르세요.')
 
+    elif select == "4":
+        clear()
+        input("이 옵션은 폐기되었습니다. 아무 키나 누르시면 돌아갑니다.")
+
     elif select == "5":
         clear()
         print(f'현재 값은 {config["count"]} 입니다. 너무 큰 숫자는 불러올 때 렉이 걸릴 수 있지만 오래 전 애니메이션을 찾기에는 좋습니다. 숫자로 입력하시기 바랍니다.')
@@ -249,7 +255,7 @@ def main_cycle(j=None):
         clear()
         print('여기서 최신 애니메이션 기준은 리스트 기준입니다.\n리스트의 번호가 낮은 순서대로 우선순위를 갖습니다.')
         c = input('몇 개를 다운받겠습니까?(숫자 입력) : ')
-        start_number_download(config, config_path, c)
+        start_number_download(config, config_path, c , j=j)
 
     elif select == "9":
         clear()
@@ -355,41 +361,48 @@ def main_cycle(j=None):
                     remove_title = db_added_magnet[tmp]['data']['title']
                     for item in j:
                         if item['data']['title'] == remove_title:
-                            print("DELETE\t\t" , item['data']['title'])
                             try:
                                 for mg in item['data']['magnets']:
                                     try:
-                                        del db[mg['magnet']]
-                                        break
-                                    except :
-                                        print("ERROR")
+                                        if mg['magnet'] in db:
+                                            del db[mg['magnet']]
+                                            print("DELETE\t\t" , item['data']['title'])
+                                            break
+                                        else:
+                                            continue
+                                    except Exception as e:
+                                        print("ERROR" , e)
                                         continue
                                 db.commit()
                             except:
                                 pass
                     clear()
-                    return main_cycle()
+                    input("진행하려면 아무 키나 누르십시오.")
+                    return main_cycle(j=j)
                     
                 except:
                     for item in j:
                         if item['data']['title'].count(select) > 0:
-                            print("DELETE\t\t" , item['data']['title'])
                             try:
                                 for mg in item['data']['magnets']:
                                     try:
-                                        del db[mg['magnet']]
-                                        break
-                                    except :
-                                        print("ERROR")
+                                        if mg['magnet'] in db:
+                                            del db[mg['magnet']]
+                                            print("DELETE\t\t" , item['data']['title'])
+                                            break
+                                        else:
+                                            continue
+                                    except Exception as e:
+                                        print("ERROR" , e)
                                         continue
                                 db.commit()
                             except:
                                 pass
                     clear()
-                    return main_cycle()
 
-
+                input("진행하려면 아무 키나 누르십시오.")
                 clear()
+                return main_cycle(j=j)
     elif select == "13":
         clear()
         print("원하는 기능을 고르세요.\n"
@@ -493,8 +506,66 @@ def main_cycle(j=None):
             print(e)
             print("캐시를 지울 수 없습니다.")
         input("아무 키나 누르면 넘어갑니다.")
-                    
+
+    elif select == "15":
+        print("특정 년도 작품만 받습니다. 기존에 다운로드된 기록이 있다면 다운받지 않습니다.\n"
+              "이 날짜는 nyaa.si 에 토렌트가 올라온 시점을 기준으로 합니다.\n"
+              "포맷은 다음과 같습니다. 2020-5월부터 2020-10월까지의 작품을 모두 다운받고 싶으면\n"
+              "2020-5:2020-10 을 입력하십시오.\n\n"
+              "또는 :2020-10 을 입력하면 2020년 10월 이전 작품(10월 포함)을 모두 받을 수 있습니다.\n"
+              "반대로, 2019-8: 을 입력하면 2019년 8월 이후 작품(8월 포함)을 모두 받을 수 있습니다.\n")
+        select = input("날짜 입력 : ")
+        if select.count(':') > 0 and select.count('-') > 0:
+            tmp = [item.strip() for item in select.split(':')]
+            start_date = tmp[0] if len(tmp[0]) > 0 else None
+            if start_date: start_date = convert_date(start_date)
+
+            end_date = tmp[1] if len(tmp[1]) > 0 else None
+            if end_date: end_date = convert_date(end_date)
+            new_j = []
+            for item in j :
+                for mg in item['data']['magnets']:
+                    mg_date = convert_date(mg['date'].split(' ')[0]) # '2020-10-12 14:20'
+                    add = False
+                    if start_date:
+                        if mg_date < start_date: # 마그넷 올라온 날짜가 start_date 보다 이전
+                            continue
+                    if end_date:
+                        if mg_date > end_date: # 마그넷 올라온 날짜가 end_date 보다 이후
+                            continue
+                    add = True
+                    break
+                if add: new_j.append(item)
+            j = new_j
+            start_number_download(config, config_path, 100000 , j=j)
+
+        else:
+            input("잘못된 포맷입니다. 아무 키나 누르면 넘어갑니다.")
+
+    elif select == "16":
+        print("특정 키워드가 들어간 작품을 모두 받습니다. 이미 다운로드 받은 작품은 무시합니다.\n"
+              "다시 받고싶으시면 다운완료 DB 수정 옵션을 사용하시기 바랍니다.\n")
+        select = input("키워드 입력 : ")
+        if len(select) > 0 :
+            new_j = []
+            for item in j:
+                if select in item['data']['title']:
+                    new_j.append(item)
+            j = new_j
+            start_number_download(config, config_path, 100000 , j=j)
+
     return main_cycle(j=j)
+
+def convert_date(text):
+    if text.count('-') == 2 : # 2020-10-10
+        date = [int(item.strip()) for item in text.split('-')]
+        date = date[0] * 365 + date[1] * 12 + date[2]
+        return date
+    if text.count('-') == 1 : # 2020-10
+        date = [int(item.strip()) for item in text.split('-')]
+        date = date[0] * 365 + date[1] * 12 + 15 # 15는 평균값
+        return date
+
 
 def mkdirs(path):
     try:
@@ -505,7 +576,7 @@ def mkdirs(path):
         mkdirs(os.path.split(path)[0])
         os.mkdir(path)
 
-def sheet_renaming(directory , j , is_file=False):
+def sheet_renaming(directory , j , is_file=False , unique_code_part=None):
     rename_log = SqliteDict("rename_Log.db")
     if is_file :
         full = directory
@@ -566,7 +637,7 @@ def sheet_renaming(directory , j , is_file=False):
                         resolution = "1080p"
                     if [item for item in ['720', '1280'] if item in filename]:
                         resolution = "720p"
-                    new_filename = f"{folder_name} {season}E{j[ff[0]][4]} [{resolution}]{ext}"
+                    new_filename = f"{folder_name} {season}E{j[ff[0]][4]} [{resolution}][{unique_code_part}]{ext}"
                     new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
                 if not os.path.exists(os.path.join(config['save_path'], folder_name)): os.mkdir(
                     os.path.join(config['save_path'], folder_name))
@@ -584,7 +655,7 @@ def sheet_renaming(directory , j , is_file=False):
                 except FileNotFoundError:
                     pass
                 if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
-                    rename_absolute_to_aired(new_path)
+                    rename_absolute_to_aired(new_path , unique_code_part=unique_code_part)
                 else:
                     print(f"RENAME\t\t{full}  -->>  {new_path}")
                 return
@@ -634,12 +705,14 @@ def sheet_renaming(directory , j , is_file=False):
                         new_path = os.path.join(config['save_path'], folder_name, season, filename)
                     elif j[ff[0]][4] != "":  # 강제지정
                         ext = os.path.splitext(filename)[1]
+                        unique_code = word_hash(filename)
+                        unique_code_part = unique_code[:6]
                         resolution = "Unknown"
                         if [item for item in ['1080', 'fhd', '1920'] if item in filename]:
                             resolution = "1080p"
                         if [item for item in ['720', '1280'] if item in filename]:
                             resolution = "720p"
-                        new_filename = f"{folder_name} S0{season}E{j[ff[0]][4]} [{resolution}]{ext}"
+                        new_filename = f"{folder_name} S0{season}E{j[ff[0]][4]} [{resolution}][{unique_code_part}]{ext}"
                         new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
                     if not os.path.exists(os.path.join(config['save_path'], folder_name)): os.mkdir(
                         os.path.join(config['save_path'], folder_name))
@@ -657,11 +730,11 @@ def sheet_renaming(directory , j , is_file=False):
                     except FileNotFoundError:
                         pass
                     if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
-                        rename_absolute_to_aired(new_path)
+                        rename_absolute_to_aired(new_path , unique_code_part=unique_code_part)
                     else:
                         print(f"RENAME\t\t{full}  -->>  {new_path}")
 
-def rename_absolute_to_aired(path):
+def rename_absolute_to_aired(path , unique_code_part=None):
     rename_log = SqliteDict("rename_Log.db")
     full , filename= path , os.path.split(path)[1]
     info = renameing_tools(filename)
@@ -712,7 +785,7 @@ def rename_absolute_to_aired(path):
                 resolution = "1080p"
             if [item for item in ['720', '1280'] if item in filename]:
                 resolution = "720p"
-            new_filename = f"{folder_name} {season}E{episode} [{resolution}]{ext}"
+            new_filename = f"{folder_name} {season}E{episode} [{resolution}][{unique_code_part}]{ext}"
             new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
             mkdirs(os.path.split(new_path)[0])
             print(f"RENAME\t\t{full}  -->>  {new_path}")
@@ -796,6 +869,8 @@ def session_for_src_addr(addr: str) -> requests.Session:
 
 import multiprocessing
 def get_download(config, config_path, magnet, myanime_title, sub_url, episode_file_name):
+    unique_code = word_hash(magnet)
+    unique_code_part = unique_code[:6]
     if episode_file_name:
         for black in config['resolution_blacklist'].split(','):
             if black in episode_file_name:
@@ -812,6 +887,10 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
     tmp = re.compile(
         '-[\d]+\.ros')  # '[HorribleSubs] Yahari Ore no Seishun Love Come wa Machigatteiru Kan - 10 [1080p].mkv-CRC.ros'
     tmp2 = re.compile('-CRC\.ros')
+    size = 0
+    for part in _j:
+        size += part['attachments'][0]['size']
+    print(f"다운로드 시작 : {episode_file_name} \t|\t 청크 갯수 : {len(_j)} \t|\t 용량 : {round(size/1024/1024/1024 , 2)} GB")
     pbar = tqdm(_j, bar_format="{desc:<5}{percentage:3.0f}%|{bar}{r_bar}")
     with ThreadPoolExecutor(max_workers=config['multi_threading']) as ex:
         # for item in pbar:
@@ -847,6 +926,7 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
         for future in as_completed(futures):
             result = future.result()
 
+    pbar.close()
     filename = 'tmp-CRC.ros'
     tmp_filepath = os.path.join(final_save_path, filename)
     tmp_filepath = re.sub(tmp, '', tmp_filepath)
@@ -875,42 +955,7 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
 
     season = str(int(name_info['season']))  # or..
     episode = None
-    convert_season_and_titles_showNames = [item.strip() for item in open(sort_keyword_path, 'r').readlines() if
-                                           len(item) > 0]
-    """if [item for item in convert_season_and_titles_showNames if item.lower() in t.lower()]:  # 키워드가 하나라도 겹친다면,
-        tvdb_info = name_info['tvdb_search_info']
-        official_url = tvdb_info['url']  # seasons/absolute/1
-        url = f'https://www.thetvdb.com{official_url}/seasons/absolute/1'
-        tvdb_res = requests.get(url, headers=headers)
-        s = BeautifulSoup(tvdb_res.text, 'html.parser')
-        tbls = s.select('table.table > tbody > tr')
-        for tbl in tbls:
-            tbl_tds = tbl.select('td')
-            S_E_info = tbl_tds[0].text
-            tmp = re.compile('s\d+', re.I)
-            tvdb_season = re.findall(tmp, S_E_info)[0]
-            tvdb_season = re.findall('\d+', tvdb_season)[0]
-
-            tmp = re.compile('e\d+', re.I)
-            tvdb_episode = re.findall(tmp, S_E_info)[0]
-            tvdb_episode = re.findall('\d+', tvdb_episode)[0]
-            if int(name_info['episode'][0]) == int(tvdb_episode) and int(name_info['season'][0]) == int(
-                    tvdb_season):  # 보수적으로 잡는다.
-                link = 'https://thetvdb.com' + tbl_tds[1].select_one('a')['href']
-                res = requests.get(link, headers=headers)
-                s = BeautifulSoup(res.text, 'html.parser')
-                tmp = s.select('div.crumbs')[0].text
-                com = re.compile('Season \d+')
-                season = re.findall(com, tmp)[0]
-                season = re.findall('\d+', season)[0]
-
-                com = re.compile('Episode \d+')
-                episode = re.findall(com, tmp)[0]
-                episode = re.findall('\d+', episode)[0]
-                break"""
     # 시트에서 처리할거니까 deprecated함 (abs 관련)
-
-
     base_dir_path = os.path.join(config['save_path'], replace_name_for_window(folder_name))
     if int(season) < 10:
         season = "S0" + season
@@ -948,8 +993,8 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
     with requests_cache.disabled():
         res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
         j = res.json()['result']
-        sheet_renaming(os.path.join(season_path, t), j, is_file=True)
-        sheet_renaming(sub_path, j, is_file=True)
+        sheet_renaming(os.path.join(season_path, t), j, is_file=True , unique_code_part=unique_code_part)
+        sheet_renaming(sub_path, j, is_file=True , unique_code_part=unique_code_part)
 
     return True
 
@@ -1001,7 +1046,7 @@ def strar_auto_download(config, config_path):
     return
 
 
-def start_number_download(config, config_path, count):
+def start_number_download(config, config_path, count , j=[]):
     able_files = \
     requests.get(f'http://{server_url}/magnet_hash_able_list', data={'apikey': config['apikey']}).json()['result']
     download_db = SqliteDict('K-ani 다운로드 완료.db')
