@@ -40,7 +40,7 @@ args 추가. 우분투나 시놀로지 및 윈도우에서 인자를 줌으로�
 
 사용법은 ani-dl.py --help 를 쳐보기를 권장 (주기적으로 바뀌거나 잠수함 패치 가능성이 있습니다.)
 
-다음과 같은 argument가 사용이 가능하다.
+    다음과 같은 argument가 사용이 가능하다.
 
     parser.add_argument('--keyword_download_start' , type=str , help="키워드 다운로드 자동시작. 키워드는 하나만 입력. 해당 키워드가 들어간 모든 애니메이션 다운로드. (리스트에서)")
     parser.add_argument('--number_download_start' , type=int , help="수량 다운로드 자동시작. 숫자만 입력.")
