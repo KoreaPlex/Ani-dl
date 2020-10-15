@@ -257,7 +257,8 @@ def main_cycle(j=None , args=None):
             if res.status_code == 200:
                 j = res.json()['result']
                 return main_cycle(j=j , args=args)
-        elif len([item for item in vars(args) if item != None]) >= 1: # wait제외하고 하나만 입력된것.
+        elif len([item for item in vars(args) if vars(args)[item] != None]) >= 1: # wait제외하고 하나만 입력된것.
+            print([item for item in vars(args) if item != None])
             print("스크립트 종료. 종료되는 것을 원치 않으시면 2개 이상의 --wait을 포함한 args 를 넣어주시길 바랍니다.")
             return
 
