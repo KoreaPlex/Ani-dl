@@ -761,7 +761,7 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None):
                         season = "S0" + season
                     else:
                         season = "S" + season
-                except:
+                except Exception as e:
                     season = "tmp"
                 if j[ff[0]][4] == "":
                     new_path = os.path.join(config['save_path'], folder_name, season, filename)
@@ -830,6 +830,15 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None):
                     folder_name = f"{replace_name_for_window(title)} ({year})"
                     try:
                         season = j[ff[0]][3]
+                        if season == "":  # 시즌명이 공란
+                            name_info = renameing_tools(filename)
+                            folder_name = replace_name_for_window(name_info['tvdb_title']) + '%s' % (
+                                ' (%s)' % name_info['year'] if name_info['year'] != None else "")
+                            folder_name = folder_name.strip()
+
+                            season = str(int(name_info['season']))  # or..
+                            episode = None
+                            base_dir_path = os.path.join(config['save_path'], replace_name_for_window(folder_name))
                         if int(season) < 10:
                             season = "S0" + season
                         else:
