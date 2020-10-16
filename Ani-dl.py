@@ -774,9 +774,9 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None):
                         resolution = "720p"
                     new_filename = f"{folder_name} {season}E{j[ff[0]][4]} [{resolution}][{unique_code_part}]{ext}"
                     new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
-                if not os.path.exists(os.path.join(config['save_path'], folder_name)): os.mkdir(
+                if not os.path.exists(os.path.join(config['save_path'], folder_name)): mkdirs(
                     os.path.join(config['save_path'], folder_name))
-                if not os.path.exists(os.path.join(config['save_path'], folder_name, season)): os.mkdir(
+                if not os.path.exists(os.path.join(config['save_path'], folder_name, season)): mkdirs(
                     os.path.join(config['save_path'], folder_name, season))
                 try:
                     os.renames(full, new_path)
@@ -858,9 +858,9 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None):
                             resolution = "720p"
                         new_filename = f"{folder_name} S0{season}E{j[ff[0]][4]} [{resolution}][{unique_code_part}]{ext}"
                         new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
-                    if not os.path.exists(os.path.join(config['save_path'], folder_name)): os.mkdir(
+                    if not os.path.exists(os.path.join(config['save_path'], folder_name)): mkdirs(
                         os.path.join(config['save_path'], folder_name))
-                    if not os.path.exists(os.path.join(config['save_path'], folder_name, season)): os.mkdir(
+                    if not os.path.exists(os.path.join(config['save_path'], folder_name, season)): mkdirs(
                         os.path.join(config['save_path'], folder_name, season))
                     try:
                         os.renames(full, new_path)
@@ -1025,7 +1025,7 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
     _j = _j.json()['result']
     if _j in [{} , []]: return
     final_save_path = os.path.join(config['save_path'], 'tmp_folder')
-    if not os.path.exists(final_save_path): os.mkdir(final_save_path)
+    if not os.path.exists(final_save_path): mkdirs(final_save_path)
     delete_tmp_files(final_save_path)
     tmps = []
     tmp = re.compile(
@@ -1047,7 +1047,7 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
                 filename = 'tmp' + re.findall(tmp, filename)[0]
             elif len(re.findall(tmp2, filename)):
                 filename = 'tmp' + re.findall(tmp2, filename)[0]
-            if not os.path.exists(final_save_path): os.mkdir(final_save_path)
+            if not os.path.exists(final_save_path): mkdirs(final_save_path)
             st_time = time.time()
             size = item['attachments'][0]['size']
             if not config['network_interface'] :
@@ -1105,9 +1105,9 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
         season = "S0" + season
     else:
         season = "S" + season
-    if not os.path.exists(base_dir_path): os.mkdir(base_dir_path)
+    if not os.path.exists(base_dir_path): mkdirs(base_dir_path)
     season_path = os.path.join(base_dir_path, season)
-    if not os.path.exists(season_path): os.mkdir(season_path)
+    if not os.path.exists(season_path): mkdirs(season_path)
     try:
         os.renames(
             os.path.join(final_save_path, t),
