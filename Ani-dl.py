@@ -12,6 +12,8 @@ try:
 except:
     os.system('pip install file_split_merge')
     os.system('pip install requests-cache')
+    os.system('python3 -m pip install requests-cache')
+    os.system('python3 -m pip install file_split_merget')
     os.system('pip3 install file_split_merge')
     os.system('pip3 install requests-cache')
     import file_split_merge
@@ -32,6 +34,7 @@ try:
 except:
     os.system('pip install pyfiglet')
     os.system('pip3 install pyfiglet')
+    os.system('python3 -m pip install pyfiglet')
     from pyfiglet import Figlet
 
     f = Figlet(font='banner3-D', width=259)
@@ -57,6 +60,11 @@ except:
     os.system("pip3 install sqlitedict")
     os.system('pip3 install file-split-merge')
     os.system('pip3 install tqdm')
+    os.system('python3 -m pip install requests')
+    os.system('python3 -m pip install sqlitedict')
+    os.system('python3 -m pip install beautifulsoup4')
+    os.system('python3 -m pip install file-split-merge')
+    os.system('python3 -m pip install tqdm')
     import requests
     from sqlitedict import SqliteDict
     from bs4 import BeautifulSoup
