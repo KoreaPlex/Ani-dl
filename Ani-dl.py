@@ -13,7 +13,7 @@ except:
     os.system('pip install file_split_merge')
     os.system('pip install requests-cache')
     os.system('python3 -m pip install requests-cache')
-    os.system('python3 -m pip install file_split_merget')
+    os.system('python3 -m pip install file_split_merge')
     os.system('pip3 install file_split_merge')
     os.system('pip3 install requests-cache')
     import file_split_merge
@@ -60,7 +60,7 @@ except:
     os.system("pip3 install sqlitedict")
     os.system('pip3 install file-split-merge')
     os.system('pip3 install tqdm')
-    os.system('python3 -m pip install requests')
+    os.system('c requests')
     os.system('python3 -m pip install sqlitedict')
     os.system('python3 -m pip install beautifulsoup4')
     os.system('python3 -m pip install file-split-merge')
@@ -288,8 +288,11 @@ def main_cycle(j=None , args=None):
           "13. 리네이밍(파일처리)\n"
           "14. 캐시 삭제\n"
           "15. 특정 년도 작품만 받기\n"
-          "16. 특정 키워드 들어간 작품 전부 받기\n")
+          "16. 특정 키워드 들어간 작품 전부 받기\n"
+          "17. Ani365")
     select = input()
+    if select == "F":
+        flask_start()
     if select == "1":
         clear()
         for index, item in enumerate(j):
@@ -458,9 +461,11 @@ def main_cycle(j=None , args=None):
                 except:
                     try:
                         import psutil
+                        ips = get_bind_ips()
                     except:
                         os.system('pip install psutil')
                         os.system('pip3 install psutil')
+                        os.system('python3 -m pip install psutil')
                         import psutil
                         try:
                             ips = get_bind_ips()
@@ -616,7 +621,7 @@ def main_cycle(j=None , args=None):
             with requests_cache.disabled():
                 res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
                 json_from_sheet = res.json()['result']
-                for (path, dir, files) in os.walk(select):
+                for (path, dir, files) in os.walk(selec13t):
                     for filename in files:
                         full = os.path.join(path, filename)
                         info = renameing_tools(filename)
@@ -696,7 +701,24 @@ def main_cycle(j=None , args=None):
                     new_j.append(item)
             j = new_j
             start_number_download(config, config_path, 100000 , j=j)
-
+    elif select == "17":
+        print("Ani365에서 다운받습니다. 다운받고자 하는 애니메이션을 입력해주세요.\n"
+              "다음과 같은 문법을 따릅니다.\n"
+              "원피스랑 나루토를 받고싶으면 : 원피스|나루토\n"
+              "이름이 잘 기억 안 나면 : 4월은 너의|아다치\n"
+              "최신 애니메이션 100개 : 최신:100|원피스|나루토\n"
+              "최신 애니메이션 10개랑 원피스 최신 100개 : 최신:10|원피스:100\n")
+        select = input("다운받고자 하는 애니. 여러개면 | 로 구분해서 입력 :")
+        if select.count('|') > 0 : select = select.split('|')
+        else: select = [select]
+        res = requests.get(f'http://{server_url}/ani365_ani_details',
+                           data={'apikey': config['apikey'],
+                                 'keyword': select})
+        ani365_json = res.json()['result']
+        for item in ani365_json:
+            tmp = ani365_json[item]
+            ani365_download(tmp , latest = True if item == '최신' else False)
+        
     return main_cycle(j=j , args=args)
 
 def convert_date(text):
@@ -709,6 +731,28 @@ def convert_date(text):
         date = date[0] * 365 + date[1] * 12 + 15 # 15는 평균값
         return date
 
+"""class flask_start:
+    # FLASK
+    def __init__(self):
+        try:
+            from flask import Flask , jsonify , request
+        except:
+            os.system('pip install flask')
+            os.system('pip3 install flask')
+            os.system('python3 -m pip install flask')
+            from flask import Flask , jsonify , request
+        #app = Flask(__name__)
+        host_addr = "0.0.0.0"
+        port_num = "34471"
+        app.run(host=host_addr, port=port_num, threaded=True)
+
+from flask import Flask , jsonify , request
+app = Flask(__name__)
+@app.route('/anime_rename', methods=['GET'])
+def anime_rename():
+    text = request.form['text']
+    return jsonify({'result': renameing_tools(text)})"""
+
 
 def mkdirs(path):
     try:
@@ -719,12 +763,12 @@ def mkdirs(path):
         mkdirs(os.path.split(path)[0])
         os.mkdir(path)
 
-def sheet_renaming(directory , j , is_file=False , unique_code_part=None):
+def sheet_renaming(directory , j , is_file=False , unique_code_part=None , force_rename=False , force_episode=None):
     rename_log = SqliteDict("rename_Log.db")
     if is_file :
         full = directory
         filename = os.path.split(directory)[1]
-        ff = [item for item in j if item in filename]
+        ff = [item for item in j if item in filename and item != ""]
         if ff:
             ff = [ff[-1]]
             url = j[ff[0]][2]
@@ -771,16 +815,19 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None):
                         season = "S" + season
                 except Exception as e:
                     season = "tmp"
-                if j[ff[0]][4] == "":
+                if j[ff[0]][4] == "" and not force_rename:
                     new_path = os.path.join(config['save_path'], folder_name, season, filename)
-                elif j[ff[0]][4] != "":  # 강제지정
+                elif j[ff[0]][4] != "" or force_rename :  # 강제지정 (주로 ani365 때문)
                     ext = os.path.splitext(filename)[1]
                     resolution = "Unknown"
                     if [item for item in ['1080', 'fhd', '1920'] if item in filename]:
                         resolution = "1080p"
                     if [item for item in ['720', '1280'] if item in filename]:
                         resolution = "720p"
-                    new_filename = f"{folder_name} {season}E{j[ff[0]][4]} [{resolution}][{unique_code_part}]{ext}"
+                    if not force_episode:
+                        new_filename = f"{folder_name} {season}E{j[ff[0]][4]} [{resolution}][{unique_code_part}]{ext}"
+                    elif force_episode and force_rename: # ani365 용도
+                        new_filename = f"{folder_name} {season}E{force_episode}{ext}"
                     new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
                 if not os.path.exists(os.path.join(config['save_path'], folder_name)): mkdirs(
                     os.path.join(config['save_path'], folder_name))
@@ -801,7 +848,7 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None):
                     rename_absolute_to_aired(new_path , unique_code_part=unique_code_part)
                 else:
                     print(f"RENAME\t\t{full}  -->>  {new_path}")
-                return
+                return new_path
         
     for (path, dir, files) in os.walk(directory):
         for filename in files:
@@ -954,7 +1001,9 @@ def rename_absolute_to_aired(path , unique_code_part=None):
                 pass
             return
 
-def get_bind_ips(except_ip_list=[] , except_ip_word_list=[] , except_keyword_list=[]):
+# get_bind_ips(except_ip_list=['192.168.130.1','192.168.164.1'] , except_ip_word_list=['169.254','127.0.0.1'] , c)
+def get_bind_ips(except_keyword_list=['Loopback'] , except_ip_word_list=['169.254','127.0.0.1'], except_ip_list=['192.168.130.1','192.168.164.1' , '192.168.11.1']):
+    import psutil
     ips = psutil.net_if_addrs()
     result = []
     for name in ips:
@@ -1020,6 +1069,108 @@ def session_for_src_addr(addr: str) -> requests.Session:
         return session
 
 import multiprocessing
+def ani365_download(ep_details , latest=False):
+    ani365_dl_db = SqliteDict('ani365-dl.db')
+    if not latest:
+        tvdb_query = ep_details['_si']
+    else: # 너무 조잡한데..
+        ep_details = {'episode_chunks' : ep_details}
+    if config['tmp_folder'] == "":
+        final_save_path = os.path.join(config['save_path'], 'tmp_folder')
+    else:
+        final_save_path = config['tmp_folder']
+    for ep in ep_details['episode_chunks']:
+        _j = ep['chunks']
+        delete_tmp_files(final_save_path)
+        tmps = []
+        tmp = re.compile('-[\d]+\.ros')  # '[HorribleSubs] Yahari Ore no Seishun Love Come wa Machigatteiru Kan - 10 [1080p].mkv-CRC.ros'
+        tmp2 = re.compile('-CRC\.ros')
+        size = 0
+        episode_file_name = ep['title']
+        if episode_file_name in ani365_dl_db: continue
+        for part in ep['chunks']:
+            size += part['attachments'][0]['size']
+        print(f"다운로드 시작 : {episode_file_name} \t|\t 청크 갯수 : {len(_j)} \t|\t 용량 : {round(size / 1024 / 1024 / 1024, 2)} GB")
+
+        pbar = tqdm(ep['chunks'], bar_format="{desc:<5}{percentage:3.0f}%|{bar}{r_bar}")
+        with ThreadPoolExecutor(max_workers=config['multi_threading']) as ex:
+            def download_file(item, pbar, number):
+                filename = item['raw_filename']
+                filename = 'tmp' +filename[filename.index('.mp4') + len('.mp4') : ]
+                tmps.append(filename)
+                url = item['attachments'][0]['url']
+                # 이름을 바꿔준다
+                if len(re.findall(tmp, filename)):
+                    filename = 'tmp' + re.findall(tmp, filename)[0]
+                elif len(re.findall(tmp2, filename)):
+                    filename = 'tmp' + re.findall(tmp2, filename)[0]
+                if not os.path.exists(final_save_path): mkdirs(final_save_path)
+                st_time = time.time()
+                size = item['attachments'][0]['size']
+                if not config['network_interface']:
+                    with requests_cache.disabled():
+                        open(os.path.join(final_save_path, filename), 'wb').write(
+                            requests.get(url, headers=headers).content)
+                else:
+                    session = net_interfaces_session[number % len(net_interfaces_session)]
+                    open(os.path.join(final_save_path, filename), 'wb').write(session.get(url, headers=headers).content)
+                mbps = (float(size) / 1000 / 1000) / (time.time() - st_time)
+                # text = f'chunk name : {filename} | {round(time.time() - st_time, 2)} SEC | \tavg {round(mbps * config["multi_threading"], 2)} MB/s | {round(size / 1024 / 1024, 2)}MB'
+                # pbar.set_description(text)
+                # pbar.set_postfix_str(text)
+                pbar.update(1)
+                pbar.refresh()
+
+            if config['network_interface']:
+                net_list = [item.strip() for item in config['network_interface'].split('|') if item.count('.') == 3]
+                net_interfaces_session = [session_for_src_addr(item) for item in net_list]
+            futures = [ex.submit(download_file, item[1], pbar, item[0]) for item in enumerate(_j)]
+            for future in as_completed(futures):
+                result = future.result()
+
+        pbar.close()
+        filename = 'tmp-CRC.ros'
+        tmp_filepath = os.path.join(final_save_path, filename)
+        tmp_filepath = re.sub(tmp, '', tmp_filepath)
+        output_name = tmp_filepath.replace('-CRC.ros', '')
+        output_name = re.sub(tmp, '', output_name).strip()
+        os.system(f'file_split_merge -m -i "{output_name}"')
+        t = replace_name_for_window(ep['subtitles']['raw_filename']).replace('.ko.srt','') + '.mp4'
+        t = t.replace('-CRC.ros', '')
+        t = re.sub(tmp, '', t).strip()
+        #t = Useless_Rename(t) # 버그생기네;
+        try:
+            os.rename(output_name, os.path.join(final_save_path, t))
+        except FileExistsError:
+            os.remove(os.path.join(final_save_path, t))
+            os.rename(output_name, os.path.join(final_save_path, t))
+        delete_tmp_files(final_save_path)
+        # os.path.join(final_save_path, t)
+        tmp_filepath = os.path.join(final_save_path, t)
+        episode = re.findall('\d+\s{0,1}화' , t)[0].replace('화','').strip()
+        sub_path = tmp_filepath.replace('.mp4' , '.ko.srt')
+        sub_url = ep['subtitles']['attachments'][0]['url']
+        # subtitle
+        open(sub_path, 'wb').write(requests.get(sub_url).content)
+        with requests_cache.disabled():
+            res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
+            j = res.json()['result']
+            new_path = sheet_renaming(os.path.join(final_save_path, t), j, is_file=True , force_rename=True,force_episode=episode)
+            if not new_path: # TVDB에 없는 애니, 수동으로 보낸다.
+                new_path = os.path.join(config['save_path'] , '수동 정리 필요' , 'S01')
+                mkdirs(new_path)
+                new_path = os.path.join(new_path , t)
+                os.renames(os.path.join(final_save_path, t) , new_path)
+                os.renames(sub_path , new_path.replace('.mp4' , '.ko.srt'))
+            else:
+                sheet_renaming(sub_path, j, is_file=True, force_rename=True, force_episode=episode)
+
+        print(f'{new_path} 다운로드 완료. 용량 {round(os.path.getsize(new_path) / 1024 / 1024 / 1024, 2)} GB')
+        ani365_dl_db[episode_file_name] = True
+        ani365_dl_db.commit()
+
+    return
+
 def get_download(config, config_path, magnet, myanime_title, sub_url, episode_file_name , date=None):
     unique_code = word_hash(magnet)
     unique_code_part = unique_code[:6]
@@ -1032,7 +1183,10 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
         return
     _j = _j.json()['result']
     if _j in [{} , []]: return
-    final_save_path = os.path.join(config['save_path'], 'tmp_folder')
+    if config['tmp_folder'] == "":
+        final_save_path = os.path.join(config['save_path'], 'tmp_folder')
+    else:
+        final_save_path = config['tmp_folder']
     if not os.path.exists(final_save_path): mkdirs(final_save_path)
     delete_tmp_files(final_save_path)
     tmps = []
@@ -1307,6 +1461,10 @@ def renameing_tools(filename, super_season=None):  # only filename accept
 
     def info_from_filename(filename):
         filename_no_ext = os.path.splitext(filename)[0]
+        # 한국어 포함?
+        """kor = re.compile('[ㄱ-ㅎ가-힇]')
+        if re.findall(kor) :
+            pass"""
         s = filename_no_ext.split(' - ')
         if len(s) < 2:
             return  # error
@@ -1335,11 +1493,10 @@ def renameing_tools(filename, super_season=None):  # only filename accept
                 showName = remove_bracket(showName, style="[(")
             return {'title': showName, 'episode': episodeNumber, 'season': season, 'year': year}
 
+
     info = info_from_filename(filename)
     if info == None: return
-    tvdb_info = \
-    requests.get(f'http://{server_url}/tvdb_search', data={'title': info['title'], 'year': info['year']}).json()[
-        'result']
+    tvdb_info = requests.get(f'http://{server_url}/tvdb_search', data={'title': info['title'], 'year': info['year']}).json()['result']
     # myanimeinfo
     myanime_search = requests.get(f'http://{server_url}/find_myanime_season', data={'keyword': info['title']})
     if myanime_search.status_code == 200 and myanime_search.json()['result']['season']:
@@ -1394,7 +1551,8 @@ def renameing_tools(filename, super_season=None):  # only filename accept
             continue
         print(tmp)"""
 
-# test = renameing_tools('[HorribleSubs] Boku no Hero Academia - Ikinokore! Kesshi no Survival Kunren - 01 [1080p].mkv')
+"""test = renameing_tools('4월은 너의 거짓말 S01E10.mp4')
+test"""
 
 def Useless_Rename(t):
     t = t.replace('BS11','')
@@ -1431,6 +1589,8 @@ if __name__ == '__main__':
         config['list_count'] = 20
         config['multi_threading'] = 3
         config['network_interface'] = None
+        print("임시 폴더 위치를 정하세요. 공백시 현재 폴더 아래에 tmp_folder에 생성됩니다.")
+        config['tmp_folder'] = input('폴더 위치 : ')
         config_save(config, config_path)
     else:
         config = config_load(config_path)
