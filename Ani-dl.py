@@ -1147,7 +1147,10 @@ def ani365_download(ep_details , latest=False):
         delete_tmp_files(final_save_path)
         # os.path.join(final_save_path, t)
         tmp_filepath = os.path.join(final_save_path, t)
-        episode = re.findall('\d+\s{0,1}화' , t)[0].replace('화','').strip()
+        try:episode = re.findall('\d+\s{0,1}화' , t)[0].replace('화','').strip()
+        except:
+            try:episode = t.split(' ')[-1]
+            except:episode = re.findall('\d+' , t)[-1]
         sub_path = tmp_filepath.replace('.mp4' , '.ko.srt')
         sub_url = ep['subtitles']['attachments'][0]['url']
         # subtitle
