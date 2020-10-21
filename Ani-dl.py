@@ -9,13 +9,17 @@ server_url = '103.208.222.5:23456'
 try:
     import file_split_merge
     import requests_cache
+    import guessit
 except:
     os.system('pip install file_split_merge')
     os.system('pip install requests-cache')
+    os.system('pip install guessit')
     os.system('python3 -m pip install requests-cache')
     os.system('python3 -m pip install file_split_merge')
+    os.system('python3 -m pip install guessit')
     os.system('pip3 install file_split_merge')
     os.system('pip3 install requests-cache')
+    os.system('pip3 install guessit')
     import file_split_merge
     import requests_cache
 
@@ -142,6 +146,15 @@ def main_cycle(j=None , args=None):
             clear()
             print('자동 다운로드가 시작됩니다. 이 창을 끄지 마십시오.')
             strar_auto_download(config, config_path)
+        elif args.ani365:
+            select = args.ani365
+            res = requests.get(f'http://{server_url}/ani365_ani_details',
+                               data={'apikey': config['apikey'],
+                                     'keyword': select})
+            ani365_json = res.json()['result']
+            for item in ani365_json:
+                tmp = ani365_json[item]
+                ani365_download(tmp, latest=True if item == '최신' else False)
         elif args.number_download_start:
             start_number_download(config, config_path, int(args.number_download_start), j=j)
         elif args.keyword_download_start:
@@ -621,7 +634,7 @@ def main_cycle(j=None , args=None):
             with requests_cache.disabled():
                 res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
                 json_from_sheet = res.json()['result']
-                for (path, dir, files) in os.walk(selec13t):
+                for (path, dir, files) in os.walk(select):
                     for filename in files:
                         full = os.path.join(path, filename)
                         info = renameing_tools(filename)
@@ -709,8 +722,8 @@ def main_cycle(j=None , args=None):
               "최신 애니메이션 100개 : 최신:100|원피스|나루토\n"
               "최신 애니메이션 10개랑 원피스 최신 100개 : 최신:10|원피스:100\n")
         select = input("다운받고자 하는 애니. 여러개면 | 로 구분해서 입력 :")
-        if select.count('|') > 0 : select = select.split('|')
-        else: select = [select]
+        """if select.count('|') > 0 : select = select.split('|')
+        else: select = [select]"""
         res = requests.get(f'http://{server_url}/ani365_ani_details',
                            data={'apikey': config['apikey'],
                                  'keyword': select})
@@ -845,7 +858,7 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None , force
                 except FileNotFoundError:
                     pass
                 if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
-                    rename_absolute_to_aired(new_path , unique_code_part=unique_code_part)
+                    new_path = rename_absolute_to_aired(new_path , unique_code_part=unique_code_part)
                 else:
                     print(f"RENAME\t\t{full}  -->>  {new_path}")
                 return new_path
@@ -929,11 +942,11 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None , force
                     except FileNotFoundError:
                         pass
                     if j[ff[0]][5] == "ABS": # Absolute Numbering 후처리
-                        rename_absolute_to_aired(new_path , unique_code_part=unique_code_part)
+                        rename_absolute_to_aired(new_path , unique_code_part=unique_code_part , fromSheet=True)
                     else:
                         print(f"RENAME\t\t{full}  -->>  {new_path}")
 
-def rename_absolute_to_aired(path , unique_code_part=None):
+def rename_absolute_to_aired(path , unique_code_part=None , fromSheet=False):
     rename_log = SqliteDict("rename_Log.db")
     full , filename= path , os.path.split(path)[1]
     info = renameing_tools(filename)
@@ -984,7 +997,7 @@ def rename_absolute_to_aired(path , unique_code_part=None):
                 resolution = "1080p"
             if [item for item in ['720', '1280'] if item in filename]:
                 resolution = "720p"
-            new_filename = f"{folder_name} {season}E{episode} [{resolution}][{unique_code_part}]{ext}"
+            new_filename = f"{folder_name} {season}E{episode} [{resolution}][{unique_code_part or 'ABS'}]{ext}"
             new_path = os.path.join(config['save_path'], folder_name, season, new_filename)
             mkdirs(os.path.split(new_path)[0])
             print(f"RENAME\t\t{full}  -->>  {new_path}")
@@ -999,7 +1012,7 @@ def rename_absolute_to_aired(path , unique_code_part=None):
                 rename_log.commit()
             except FileNotFoundError:
                 pass
-            return
+            return new_path
 
 # get_bind_ips(except_ip_list=['192.168.130.1','192.168.164.1'] , except_ip_word_list=['169.254','127.0.0.1'] , c)
 def get_bind_ips(except_keyword_list=['Loopback'] , except_ip_word_list=['169.254','127.0.0.1'], except_ip_list=['192.168.130.1','192.168.164.1' , '192.168.11.1']):
@@ -1498,7 +1511,13 @@ def renameing_tools(filename, super_season=None):  # only filename accept
 
 
     info = info_from_filename(filename)
-    if info == None: return
+    if info == None: 
+        if super_season and re.findall('E\d+' , filename): # 골든 카무이 (2018)E20.srt
+            guess = guessit.guessit(filename)
+            info = {'title' : guess['title'] ,'year' : guess['year'] if 'year' in guess else None ,
+                    'season' : super_season or None , 'episode' : [guess['episode']] if 'episode' in guess else None}
+        else:
+            return
     tvdb_info = requests.get(f'http://{server_url}/tvdb_search', data={'title': info['title'], 'year': info['year']}).json()['result']
     # myanimeinfo
     myanime_search = requests.get(f'http://{server_url}/find_myanime_season', data={'keyword': info['title']})
@@ -1613,6 +1632,7 @@ if __name__ == '__main__':
                         "작성 예시 : 3|F:\# INCOMING\최신 애니\원피스 (1998)")
     parser.add_argument('--date_download_start', type=str, help="특정 날짜에 포함된 것들만 다운. ex ) 2020-09:2020-10 또는 2019-3: 또는 :2020-1")
     parser.add_argument('--wait' , type=int , help="특정 시간마다 신작 리스트 재호출 후 스크립트 그대로 다시시작. 숫자만 입력. 입력하지 않을 경우 1사이클 돌고 종료.")
+    parser.add_argument('--ani365' , type=str , help='ani365에 캐싱된 애니메이션 다운. 명령어는 그대로 (ex : 최신:300|나루토|원피스:100|제로부터')
     args = parser.parse_args()
     # time.sleep(3)
     res = call_new_anime()
