@@ -148,13 +148,14 @@ def main_cycle(j=None , args=None):
             strar_auto_download(config, config_path)
         elif args.ani365:
             select = args.ani365
-            res = requests.get(f'http://{server_url}/ani365_ani_details',
-                               data={'apikey': config['apikey'],
-                                     'keyword': select})
-            ani365_json = res.json()['result']
-            for item in ani365_json:
-                tmp = ani365_json[item]
-                ani365_download(tmp, latest=True if item == '최신' else False)
+            with requests_cache.disabled():
+                res = requests.get(f'http://{server_url}/ani365_ani_details',
+                                   data={'apikey': config['apikey'],
+                                         'keyword': select})
+                ani365_json = res.json()['result']
+                for item in ani365_json:
+                    tmp = ani365_json[item]
+                    ani365_download(tmp, latest=True if item == '최신' else False)
         elif args.number_download_start:
             start_number_download(config, config_path, int(args.number_download_start), j=j)
         elif args.keyword_download_start:
@@ -720,17 +721,19 @@ def main_cycle(j=None , args=None):
               "원피스랑 나루토를 받고싶으면 : 원피스|나루토\n"
               "이름이 잘 기억 안 나면 : 4월은 너의|아다치\n"
               "최신 애니메이션 100개 : 최신:100|원피스|나루토\n"
-              "최신 애니메이션 10개랑 원피스 최신 100개 : 최신:10|원피스:100\n")
+              "최신 애니메이션 10개랑 원피스 최신 100개 : 최신:10|원피스:100\n"
+              "특정 에피소드 : 나루토:-10|원피스:-402")
         select = input("다운받고자 하는 애니. 여러개면 | 로 구분해서 입력 :")
         """if select.count('|') > 0 : select = select.split('|')
         else: select = [select]"""
-        res = requests.get(f'http://{server_url}/ani365_ani_details',
-                           data={'apikey': config['apikey'],
-                                 'keyword': select})
-        ani365_json = res.json()['result']
-        for item in ani365_json:
-            tmp = ani365_json[item]
-            ani365_download(tmp , latest = True if item == '최신' else False)
+        with requests_cache.disabled():
+            res = requests.get(f'http://{server_url}/ani365_ani_details',
+                               data={'apikey': config['apikey'],
+                                     'keyword': select})
+            ani365_json = res.json()['result']
+            for item in ani365_json:
+                tmp = ani365_json[item]
+                ani365_download(tmp , latest = True if item == '최신' else False)
         
     return main_cycle(j=j , args=args)
 
@@ -1100,7 +1103,9 @@ def ani365_download(ep_details , latest=False):
         tmp2 = re.compile('-CRC\.ros')
         size = 0
         episode_file_name = ep['title']
-        if episode_file_name in ani365_dl_db: continue
+        if episode_file_name in ani365_dl_db:
+            if 'force' not in ep_details and not ep_details['force']:
+                continue
         for part in ep['chunks']:
             size += part['attachments'][0]['size']
         print(f"다운로드 시작 : {episode_file_name} \t|\t 청크 갯수 : {len(_j)} \t|\t 용량 : {round(size / 1024 / 1024 / 1024, 2)} GB")
@@ -1120,13 +1125,30 @@ def ani365_download(ep_details , latest=False):
                 if not os.path.exists(final_save_path): mkdirs(final_save_path)
                 st_time = time.time()
                 size = item['attachments'][0]['size']
+                try_count = 0
                 if not config['network_interface']:
                     with requests_cache.disabled():
-                        open(os.path.join(final_save_path, filename), 'wb').write(
-                            requests.get(url, headers=headers).content)
+                        while True and try_count <= 4:
+                            try:
+                                open(os.path.join(final_save_path, filename), 'wb').write(
+                                    requests.get(url, headers=headers).content)
+                                break
+                            except:
+                                try_count+=1
+                                time.sleep(3)
+                                continue
                 else:
-                    session = net_interfaces_session[number % len(net_interfaces_session)]
-                    open(os.path.join(final_save_path, filename), 'wb').write(session.get(url, headers=headers).content)
+                    while True and try_count <= 4 :
+                        try:
+                            session = net_interfaces_session[number % len(net_interfaces_session)]
+                            open(os.path.join(final_save_path, filename), 'wb').write(session.get(url, headers=headers).content)
+                            break
+                        except:
+                            try_count +=1
+                            time.sleep(3)
+                            continue
+                if try_count >= 5 :
+                    raise ConnectionError
                 mbps = (float(size) / 1000 / 1000) / (time.time() - st_time)
                 # text = f'chunk name : {filename} | {round(time.time() - st_time, 2)} SEC | \tavg {round(mbps * config["multi_threading"], 2)} MB/s | {round(size / 1024 / 1024, 2)}MB'
                 # pbar.set_description(text)
@@ -1228,12 +1250,30 @@ def get_download(config, config_path, magnet, myanime_title, sub_url, episode_fi
             if not os.path.exists(final_save_path): mkdirs(final_save_path)
             st_time = time.time()
             size = item['attachments'][0]['size']
+            try_count = 0
             if not config['network_interface'] :
                 with requests_cache.disabled():
-                    open(os.path.join(final_save_path, filename), 'wb').write(requests.get(url, headers=headers).content)
+                    while True and try_count <= 4:
+                        try:
+                            open(os.path.join(final_save_path, filename), 'wb').write(requests.get(url, headers=headers).content)
+                            break
+                        except:
+                            try_count +=1
+                            time.sleep(3)
+                            continue
             else :
-                session = net_interfaces_session[number % len(net_interfaces_session)]
-                open(os.path.join(final_save_path, filename), 'wb').write(session.get(url, headers=headers).content)
+                while True and try_count <= 4:
+                    try:
+                        session = net_interfaces_session[number % len(net_interfaces_session)]
+                        open(os.path.join(final_save_path, filename), 'wb').write(session.get(url, headers=headers).content)
+                        break
+                    except:
+                        try_count +=1
+                        time.sleep(3)
+                        continue
+
+            if try_count == 5 :
+                raise ConnectionError
             mbps = (float(size) / 1000 / 1000) / (time.time() - st_time)
             #text = f'chunk name : {filename} | {round(time.time() - st_time, 2)} SEC | \tavg {round(mbps * config["multi_threading"], 2)} MB/s | {round(size / 1024 / 1024, 2)}MB'
             # pbar.set_description(text)
