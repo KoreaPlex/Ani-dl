@@ -726,7 +726,7 @@ def main_cycle(j=None , args=None):
         select = input("다운받고자 하는 애니. 여러개면 | 로 구분해서 입력 :")
         """if select.count('|') > 0 : select = select.split('|')
         else: select = [select]"""
-        with requests_cache.disabled():
+        with requests_cache.enabled():
             res = requests.get(f'http://{server_url}/ani365_ani_details',
                                data={'apikey': config['apikey'],
                                      'keyword': select})
@@ -1104,7 +1104,7 @@ def ani365_download(ep_details , latest=False):
         size = 0
         episode_file_name = ep['title']
         if episode_file_name in ani365_dl_db:
-            if 'force' not in ep_details and not ep_details['force']:
+            if 'force' not in ep_details :
                 continue
         for part in ep['chunks']:
             size += part['attachments'][0]['size']
@@ -1198,7 +1198,11 @@ def ani365_download(ep_details , latest=False):
                 new_path = os.path.join(config['save_path'] , '수동 정리 필요' , 'S01')
                 mkdirs(new_path)
                 new_path = os.path.join(new_path , t)
-                os.renames(os.path.join(final_save_path, t) , new_path)
+                try:os.renames(os.path.join(final_save_path, t) , new_path)
+                except:
+                    import traceback
+                    traceback.print_exc()
+                    continue
                 os.renames(sub_path , new_path.replace('.mp4' , '.ko.srt'))
             else:
                 sheet_renaming(sub_path, j, is_file=True, force_rename=True, force_episode=episode)
