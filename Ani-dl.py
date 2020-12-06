@@ -788,7 +788,7 @@ def sheet_renaming(directory , j , is_file=False , unique_code_part=None , force
         if ff:
             ff = [ff[-1]]
             url = j[ff[0]][2]
-            with requests_cache.enabled():
+            with requests_cache.disabled():
                 res = requests.get(url)
                 s = BeautifulSoup(res.text, 'html.parser')
                 tmps = s.select('div.change_translation_text')
@@ -1397,17 +1397,23 @@ def strar_auto_download(config, config_path):
         if check:
             myanime_title = replace_name_for_window(item['data']['myanime']['name'])
             for tmp in item['data']['magnets']:  # 여러 개 있을 수 있다.
-                magnet = tmp['magnet']
-                # magnet = "magnet:?xt=urn:btih:0d4060cf38a86d889cca3d99e12a3180b90ae13e"
-                if magnet in download_db: continue
-                tes = word_hash(magnet)
-                if word_hash(magnet) not in able_files: continue
-                if get_download(config, config_path, magnet, myanime_title, sub_url, tmp['title'] , tmp['date']):
-                    download_db[magnet] = True
-                    download_db.commit()
-                else:
-                    tmp_title = title.replace("\n", " | ")
-                    # print(f'[{tmp_title}] 에 속하는 토렌트 주소 {magnet} 가 아직 작업이 덜 되어서 다운로드가 불가능합니다. 다음에 다운받습니다.')
+                try:
+                    magnet = tmp['magnet']
+                    # magnet = "magnet:?xt=urn:btih:0d4060cf38a86d889cca3d99e12a3180b90ae13e"
+                    if magnet in download_db: continue
+                    tes = word_hash(magnet)
+                    if word_hash(magnet) not in able_files: continue
+                    if get_download(config, config_path, magnet, myanime_title, sub_url, tmp['title'] , tmp['date']):
+                        download_db[magnet] = True
+                        download_db.commit()
+                    else:
+                        tmp_title = title.replace("\n", " | ")
+                        # print(f'[{tmp_title}] 에 속하는 토렌트 주소 {magnet} 가 아직 작업이 덜 되어서 다운로드가 불가능합니다. 다음에 다운받습니다.')
+                except:
+                    import traceback
+                    traceback.print_exc()
+                    print('해당 애니는 알 수 없는 이유로 다운로드 불가능')
+                    continue
 
     return
 
@@ -1423,16 +1429,22 @@ def start_number_download(config, config_path, count , j=[]):
         sub_url = item['data']['sub_url']
         myanime_title = replace_name_for_window(item['data']['myanime']['name'])
         for tmp in item['data']['magnets']:  # 여러 개 있을 수 있다.
-            magnet = tmp['magnet']
-            # magnet = "magnet:?xt=urn:btih:0d4060cf38a86d889cca3d99e12a3180b90ae13e"
-            if magnet in download_db: continue
-            if word_hash(magnet) not in able_files: continue
-            if get_download(config, config_path, magnet, myanime_title, sub_url, tmp['title'], tmp['date']):
-                download_db[magnet] = True
-                download_db.commit()
-            else:
-                tmp_title = title.replace("\n", " | ")
-                # print(f'[{tmp_title}] 에 속하는 토렌트 주소 {word_hash(magnet)} 가 아직 작업이 덜 되어서 다운로드가 불가능합니다. 다음에 다운받습니다.')
+            try:
+                magnet = tmp['magnet']
+                # magnet = "magnet:?xt=urn:btih:0d4060cf38a86d889cca3d99e12a3180b90ae13e"
+                if magnet in download_db: continue
+                if word_hash(magnet) not in able_files: continue
+                if get_download(config, config_path, magnet, myanime_title, sub_url, tmp['title'], tmp['date']):
+                    download_db[magnet] = True
+                    download_db.commit()
+                else:
+                    tmp_title = title.replace("\n", " | ")
+                    # print(f'[{tmp_title}] 에 속하는 토렌트 주소 {word_hash(magnet)} 가 아직 작업이 덜 되어서 다운로드가 불가능합니다. 다음에 다운받습니다.')
+            except:
+                import traceback
+                traceback.print_exc()
+                print('해당 애니는 알 수 없는 이유로 다운로드 불가능')
+                continue
 
     return
 
