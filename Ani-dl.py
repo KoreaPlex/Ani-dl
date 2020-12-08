@@ -1516,7 +1516,7 @@ def rename_for_searching(t):
     return None, t
 
 
-def renameing_tools(filename, super_season=None):  # only filename accept
+def renameing_tools(filename, super_season=None , tryCount = 5):  # only filename accept
     """if os.path.isfile(path): # path
         (basedir , filename) = os.path.split(path)
     else: # normal file name
@@ -1574,7 +1574,8 @@ def renameing_tools(filename, super_season=None):  # only filename accept
                     'season' : super_season or None , 'episode' : [guess['episode']] if 'episode' in guess else None}
         else:
             return
-    tvdb_info = requests.get(f'http://{server_url}/tvdb_search', data={'title': info['title'], 'year': info['year']}).json()['result']
+    try:tvdb_info = requests.get(f'http://{server_url}/tvdb_search', data={'title': info['title'], 'year': info['year']}).json()['result']
+    except:tvdb_info = None
     # myanimeinfo
     myanime_search = requests.get(f'http://{server_url}/find_myanime_season', data={'keyword': info['title']})
     if myanime_search.status_code == 200 and myanime_search.json()['result']['season']:
@@ -1598,8 +1599,10 @@ def renameing_tools(filename, super_season=None):  # only filename accept
         if up_value <= 0.6: return  # 없는거임
         return tvdb_filtering_cascade(tvdb_info, up_value=up_value - 0.05)
 
-    result = tvdb_filtering_cascade(tvdb_info,
-                                    0.9)  # '[Erai-raws] Tenchi Muyou! Ryououki Dai Go-ki - 03 [1080p][Multiple Subtitle].mkv'
+    result = None
+    if tvdb_info:
+        result = tvdb_filtering_cascade(tvdb_info,
+                                        0.9)  # '[Erai-raws] Tenchi Muyou! Ryououki Dai Go-ki - 03 [1080p][Multiple Subtitle].mkv'
     if not result:  # [Ohys-Raws] Yahari Ore no Seishun LoveCome wa Machigatte Iru. Kan - 11 (TBS 1920x1080 x264 AAC).mp4 처리해줘야
         # 시즌을. find_myanime_season
         res = requests.get(f'http://{server_url}/find_myanime_season', data={'keyword': info['title']})
@@ -1612,12 +1615,45 @@ def renameing_tools(filename, super_season=None):  # only filename accept
             name_info = {'tvdb_title': "수동 정리 필요", "season": info['season'], 'year': None}
             return name_info
         else:
+            # 우선 확인을 2020-12-08
+            if tryCount == 0 :
+                with requests_cache.disabled():
+                    res = requests.get(f'http://{server_url}/ani_mapping_keyword_all')
+                    tmp = res.json()['result']
+                    tmpCompile = re.compile('S\d+')
+                    seasonRemovedTitle = re.sub(tmpCompile ,'' ,info['title']).strip()
+                    if seasonRemovedTitle in tmp:
+                        trueSheetData = tmp[seasonRemovedTitle]
+                        tvdbTitleByRequests = callTvdbByLink(trueSheetData[2])
+                        if tvdbTitleByRequests:
+                            return renameing_tools('%s S0%s - %s.mp4' % (tvdbTitleByRequests, trueSheetData[3], info['episode'][0]),
+                                                   super_season=trueSheetData[3], tryCount=3)
+
             j = res.json()['result']
             if j['season'] == None: j['season'] = '1'
             return renameing_tools('%s S0%s - %s.mp4' % (j['tvdb_title'], j['season'], info['episode'][0]),
-                                   super_season=super_season)
+                                   super_season=super_season , tryCount = tryCount -1)
     return result
 
+def callTvdbByLink(url):
+    res = requests.get(url)
+    s = BeautifulSoup(res.text , 'html.parser')
+    titles = s.select('div.change_translation_text')
+    for title in titles:
+        if title['data-language'] == "eng":
+            return title['data-title'].strip()
+    for title in titles:
+        if title['data-language'] == "kor":
+            return title['data-title'].strip()
+
+    for title in titles:
+        if title['data-language'] == "jpn":
+            return title['data-title'].strip()
+        
+
+    for title in titles:
+        return title['data-title'].strip()
+    return None
 
 """for (path, dir, files) in os.walk("F:\# INCOMING\최신 애니"):
     for filename in files:
